@@ -49,7 +49,7 @@ export function SessionDurationInput({
     }
 
     if (parsed === null) {
-      setError('Enter minutes (e.g., 90) or hours:minutes (e.g., 1:30)');
+      setError('Enter hours (e.g., 2), h:mm (e.g., 1:30), or with suffix (e.g., 90min, 2h)');
       onChange(null);
       return;
     }
@@ -82,7 +82,7 @@ export function SessionDurationInput({
 
     const parsed = parseDuration(textToValidate);
     if (parsed === null) {
-      setError('Enter minutes (e.g., 90) or hours:minutes (e.g., 1:30)');
+      setError('Enter hours (e.g., 2), h:mm (e.g., 1:30), or with suffix (e.g., 90min, 2h)');
       return;
     }
 
@@ -102,7 +102,7 @@ export function SessionDurationInput({
           id="session-duration"
           type="text"
           inputMode="numeric"
-          placeholder="e.g., 90 or 1:30"
+          placeholder="e.g., 2 or 1:30"
           value={displayedInput}
           onChange={handleChange}
           onFocus={handleFocus}

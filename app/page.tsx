@@ -1,22 +1,15 @@
 'use client';
 
-import { useState, useSyncExternalStore, useEffect } from 'react';
+import { useState } from 'react';
 import { ClientProvider } from './components/ClientProvider';
 import { AppShell } from './components/AppShell';
 import { ModeIndicator } from './components/ModeIndicator';
 import { ContextDetail } from './components/contexts/ContextDetail';
 import { InboxView } from './components/tasks/InboxView';
 import { SessionSetupDialog } from './components/session/SessionSetupDialog';
+import { ActiveSessionBanner } from './components/session/ActiveSessionBanner';
 import { WorkingModeView } from './components/working/WorkingModeView';
-import { SessionRecoveryDialog } from './components/working/SessionRecoveryDialog';
 import { useStore } from '@/lib/store';
-import {
-  checkForExistingSession,
-  markRecoveryHandled,
-  subscribe,
-  getSnapshot,
-  getServerSnapshot,
-} from '@/lib/session-recovery';
 import {
   Card,
   CardContent,
@@ -25,7 +18,7 @@ import {
   CardTitle,
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Layers, Play } from 'lucide-react';
+import { Layers, Play, RefreshCw } from 'lucide-react';
 
 type Selection =
   | { type: 'inbox' }
@@ -33,47 +26,15 @@ type Selection =
   | null;
 
 function HomeContent() {
-  const { state, isHydrated, getContextById, resumeSession, endSession } = useStore();
+  const { state, getContextById, resumeSession, endSession } = useStore();
   const [selection, setSelection] = useState<Selection>(null);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
-
-  // Use external store for session recovery state
-  const recoveryState = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   // Compute mode announcement text - displayed via aria-live region
   const modeAnnouncement = state.mode === 'definition' ? 'Definition Mode' : 'Working Mode';
 
-  // Check for existing session on initial hydration
-  useEffect(() => {
-    if (isHydrated) {
-      checkForExistingSession(!!state.session, state.mode);
-    }
-  }, [isHydrated, state.session, state.mode]);
-
-  // Show recovery dialog if there was an existing session and we haven't handled it yet
-  const showRecoveryDialog = recoveryState.checked && recoveryState.hasExistingSession && !recoveryState.handled;
-
-  const handleContinueSession = () => {
-    // Reset the context start time to now (resumeSession does this)
-    resumeSession();
-    markRecoveryHandled();
-  };
-
-  const handleDiscardSession = () => {
-    endSession();
-    markRecoveryHandled();
-  };
-
-  // Show recovery dialog if needed
-  if (showRecoveryDialog) {
-    return (
-      <SessionRecoveryDialog
-        open={showRecoveryDialog}
-        onContinue={handleContinueSession}
-        onDiscard={handleDiscardSession}
-      />
-    );
-  }
+  // Check if we have a suspended session to show the banner
+  const hasSuspendedSession = state.session?.status === 'suspended';
 
   // Render Working Mode when in working mode with active session
   if (state.mode === 'working' && state.session) {
@@ -109,6 +70,14 @@ function HomeContent() {
   return (
     <>
       <ModeAnnouncementRegion mode={state.mode} announcement={modeAnnouncement} />
+      {hasSuspendedSession && state.session && (
+        <ActiveSessionBanner
+          session={state.session}
+          contexts={state.contexts}
+          onResume={resumeSession}
+          onDiscard={endSession}
+        />
+      )}
       <AppShell
         headerRightContent={<ModeIndicator />}
         selectedContextId={selectedContextId}
@@ -187,15 +156,41 @@ function HomeContent() {
                   </p>
                 </div>
               ) : state.mode === 'definition' && (
-                <div className="mt-6 flex justify-center">
-                  <Button
-                    size="lg"
-                    onClick={() => setSessionDialogOpen(true)}
-                    className="gap-2"
-                  >
-                    <Play className="size-4" />
-                    Start Session
-                  </Button>
+                <div className="mt-6 flex flex-col items-center gap-3">
+                  {state.session?.status === 'suspended' ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">
+                        You have a suspended session
+                      </p>
+                      <div className="flex gap-2">
+                        <Button size="lg" onClick={resumeSession} className="gap-2">
+                          <Play className="size-4" />
+                          Continue Session
+                        </Button>
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          onClick={() => {
+                            endSession();
+                            setSessionDialogOpen(true);
+                          }}
+                          className="gap-2"
+                        >
+                          <RefreshCw className="size-4" />
+                          Start New
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <Button
+                      size="lg"
+                      onClick={() => setSessionDialogOpen(true)}
+                      className="gap-2"
+                    >
+                      <Play className="size-4" />
+                      Start Session
+                    </Button>
+                  )}
                 </div>
               )}
             </CardContent>

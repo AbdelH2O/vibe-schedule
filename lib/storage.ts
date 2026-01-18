@@ -25,11 +25,20 @@ export function loadState(): AppState {
     }
 
     // Ensure all required fields exist (migration safety)
+    let session = parsed.session ?? null;
+    let mode: 'definition' | 'working' = parsed.mode === 'working' ? 'working' : 'definition';
+
+    // Auto-suspend active sessions on page load (handles page refresh case)
+    if (session && (session.status === 'active' || session.status === 'paused')) {
+      session = { ...session, status: 'suspended' as const, contextStartedAt: null };
+      mode = 'definition';
+    }
+
     return {
       contexts: Array.isArray(parsed.contexts) ? parsed.contexts : [],
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
-      mode: parsed.mode === 'working' ? 'working' : 'definition',
-      session: parsed.session ?? null,
+      mode,
+      session,
     };
   } catch (error) {
     console.error('Failed to load state from localStorage:', error);

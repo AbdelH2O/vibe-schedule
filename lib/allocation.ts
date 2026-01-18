@@ -214,11 +214,15 @@ export function calculateAllocations(input: AllocationInput): AllocationResult {
 }
 
 /**
- * Parse duration input (supports minutes or h:mm format)
+ * Parse duration input (supports various formats)
+ * - "1:30" → 90 minutes (h:mm format)
+ * - "90min" or "90m" → 90 minutes (explicit minutes)
+ * - "2h" → 120 minutes (explicit hours)
+ * - "2" → 120 minutes (bare number defaults to hours)
  * Returns minutes or null if invalid
  */
 export function parseDuration(input: string): number | null {
-  const trimmed = input.trim();
+  const trimmed = input.trim().toLowerCase();
 
   if (!trimmed) return null;
 
@@ -235,14 +239,34 @@ export function parseDuration(input: string): number | null {
     return hours * 60 + minutes;
   }
 
-  // Try plain minutes
-  const minutes = parseFloat(trimmed);
+  // Try explicit minutes suffix (e.g., "90min", "90m")
+  const minMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*(?:min|m)$/);
+  if (minMatch) {
+    const minutes = parseFloat(minMatch[1]);
+    if (isNaN(minutes) || minutes <= 0) {
+      return null;
+    }
+    return Math.round(minutes);
+  }
 
-  if (isNaN(minutes) || minutes <= 0) {
+  // Try explicit hours suffix (e.g., "2h", "1.5h")
+  const hourMatch = trimmed.match(/^(\d+(?:\.\d+)?)\s*h$/);
+  if (hourMatch) {
+    const hours = parseFloat(hourMatch[1]);
+    if (isNaN(hours) || hours <= 0) {
+      return null;
+    }
+    return Math.round(hours * 60);
+  }
+
+  // Bare number defaults to hours
+  const hours = parseFloat(trimmed);
+
+  if (isNaN(hours) || hours <= 0) {
     return null;
   }
 
-  return Math.round(minutes);
+  return Math.round(hours * 60);
 }
 
 /**

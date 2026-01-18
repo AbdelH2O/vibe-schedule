@@ -3,6 +3,8 @@
 import { useStore } from '@/lib/store';
 import { initializeAudio, playChime, playCompletion } from '@/lib/notifications';
 import { getElapsedSeconds } from '@/lib/timer';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft } from 'lucide-react';
 import { useEffect, useCallback, useState } from 'react';
 import { ActiveContextPanel } from './ActiveContextPanel';
 import { SessionTimer } from './SessionTimer';
@@ -12,7 +14,7 @@ import { SessionControls } from './SessionControls';
 import { SessionSummary, calculateSessionSummary, type SessionSummaryData } from './SessionSummary';
 
 export function WorkingModeView() {
-  const { state, getContextById, endSession, pauseSession, resumeSession } = useStore();
+  const { state, getContextById, endSession, pauseSession, resumeSession, suspendSession } = useStore();
   const session = state.session;
   const [summaryData, setSummaryData] = useState<SessionSummaryData | null>(null);
   const [showSummary, setShowSummary] = useState(false);
@@ -94,6 +96,15 @@ export function WorkingModeView() {
     prepareEndSession();
   }, [prepareEndSession]);
 
+  const handleSuspend = useCallback(() => {
+    if (!session) return;
+    // Calculate elapsed time for current context since contextStartedAt
+    const elapsedMinutes = session.contextStartedAt
+      ? getElapsedSeconds(session.contextStartedAt) / 60
+      : 0;
+    suspendSession(elapsedMinutes);
+  }, [session, suspendSession]);
+
   if (!session) {
     return null;
   }
@@ -113,7 +124,19 @@ export function WorkingModeView() {
       {/* Header with session timer */}
       <header className="border-b bg-card px-4 sm:px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
-          <h1 className="text-lg sm:text-xl font-semibold">Working Mode</h1>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleSuspend}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" />
+              <span className="hidden sm:inline">Back to Planning</span>
+              <span className="sm:hidden">Back</span>
+            </Button>
+            <h1 className="text-lg sm:text-xl font-semibold">Working Mode</h1>
+          </div>
           <SessionTimer
             session={session}
             onSessionExhausted={handleSessionExhausted}

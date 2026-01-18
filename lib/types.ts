@@ -39,7 +39,7 @@ export interface Session {
   allocations: ContextAllocation[];
   activeContextId: string | null;
   contextStartedAt: string | null; // when current context began
-  status: 'active' | 'paused' | 'completed';
+  status: 'active' | 'paused' | 'suspended' | 'completed';
 }
 
 export interface ContextAllocation {
