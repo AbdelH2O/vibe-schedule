@@ -9,9 +9,10 @@ import type { ImportantDate } from '@/lib/types';
 
 interface ImportantDateFormProps {
   onAdd: (date: Omit<ImportantDate, 'id'>) => void;
+  compact?: boolean;
 }
 
-export function ImportantDateForm({ onAdd }: ImportantDateFormProps) {
+export function ImportantDateForm({ onAdd, compact = false }: ImportantDateFormProps) {
   const [label, setLabel] = useState('');
   const [date, setDate] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +38,37 @@ export function ImportantDateForm({ onAdd }: ImportantDateFormProps) {
     setDate('');
     setError(null);
   };
+
+  if (compact) {
+    return (
+      <form onSubmit={handleSubmit} className="flex items-center gap-2">
+        <Input
+          type="text"
+          value={label}
+          onChange={(e) => setLabel(e.target.value)}
+          placeholder="Milestone name"
+          className="h-7 text-xs flex-1 min-w-0"
+          aria-label="Milestone name"
+        />
+        <Input
+          type="date"
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
+          className="h-7 text-xs w-32"
+          aria-label="Milestone date"
+        />
+        <Button
+          type="submit"
+          size="icon"
+          variant="ghost"
+          className="size-7 shrink-0"
+          aria-label="Add milestone"
+        >
+          <Plus className="size-3.5" aria-hidden="true" />
+        </Button>
+      </form>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3">

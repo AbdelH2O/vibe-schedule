@@ -26,10 +26,11 @@ export function EditTaskDialog({
   if (!task) return null;
 
   const handleSubmit = (data: TaskFormData) => {
-    // Update title and deadline
+    // Update title, deadline, and description
     updateTask(task.id, {
       title: data.title,
       deadline: data.deadline || undefined,
+      description: data.description || undefined,
     });
 
     // Move to different context if changed
@@ -51,6 +52,7 @@ export function EditTaskDialog({
             title: task.title,
             contextId: task.contextId,
             deadline: task.deadline ?? '',
+            description: task.description ?? '',
           }}
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}

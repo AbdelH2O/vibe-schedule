@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { ClientProvider } from './components/ClientProvider';
 import { AppShell } from './components/AppShell';
 import { ModeIndicator } from './components/ModeIndicator';
+import { DemoTemplateButton } from './components/DemoTemplateButton';
 import { ContextDetail } from './components/contexts/ContextDetail';
 import { InboxView } from './components/tasks/InboxView';
 import { SessionSetupDialog } from './components/session/SessionSetupDialog';
@@ -101,7 +102,12 @@ function HomeContent() {
         </div>
       )}
       <AppShell
-        headerRightContent={<ModeIndicator />}
+        headerRightContent={
+          <div className="flex items-center gap-2">
+            <DemoTemplateButton />
+            <ModeIndicator />
+          </div>
+        }
         selectedContextId={selectedContextId}
         onSelectContext={setSelectedContextId}
         isInboxSelected={isInboxSelected}

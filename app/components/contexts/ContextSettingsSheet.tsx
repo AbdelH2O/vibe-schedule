@@ -22,11 +22,8 @@ import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
 import { DurationInput } from '../shared/DurationInput';
 import { ColorPicker } from '../shared/ColorPicker';
-import { ImportantDateForm } from './ImportantDateForm';
-import { ImportantDateList } from './ImportantDateList';
-import { generateId } from '@/lib/storage';
 import type { ContextColorName } from '@/lib/colors';
-import type { Context, ImportantDate } from '@/lib/types';
+import type { Context } from '@/lib/types';
 
 interface ContextSettingsSheetProps {
   context: Context;
@@ -49,7 +46,7 @@ export function ContextSettingsSheet({
         <SheetHeader>
           <SheetTitle>Context Settings</SheetTitle>
           <SheetDescription id="settings-description">
-            Configure time constraints, priority, and important dates.
+            Configure name, color, priority, and time constraints.
           </SheetDescription>
         </SheetHeader>
 
@@ -81,9 +78,6 @@ function ContextSettingsForm({ context, onClose }: ContextSettingsFormProps) {
   const [minDuration, setMinDuration] = useState(context.minDuration?.toString() ?? '');
   const [maxDuration, setMaxDuration] = useState(context.maxDuration?.toString() ?? '');
   const [weight, setWeight] = useState(context.weight.toString());
-  const [importantDates, setImportantDates] = useState<ImportantDate[]>(
-    context.importantDates ?? []
-  );
   const [error, setError] = useState<string | null>(null);
 
   const validate = (): boolean => {
@@ -120,22 +114,13 @@ function ContextSettingsForm({ context, onClose }: ContextSettingsFormProps) {
       minDuration: minDuration ? parseInt(minDuration, 10) : undefined,
       maxDuration: maxDuration ? parseInt(maxDuration, 10) : undefined,
       weight: parseFloat(weight),
-      importantDates: importantDates.length > 0 ? importantDates : undefined,
     });
 
     onClose();
   };
 
-  const handleAddDate = (date: Omit<ImportantDate, 'id'>) => {
-    setImportantDates([...importantDates, { ...date, id: generateId() }]);
-  };
-
-  const handleRemoveDate = (id: string) => {
-    setImportantDates(importantDates.filter((d) => d.id !== id));
-  };
-
   return (
-    <div className="mt-6 space-y-6">
+    <div className="px-4 pb-6 space-y-6">
       {/* Name */}
       <div className="space-y-2">
         <Label htmlFor="settings-name">
@@ -174,6 +159,9 @@ function ContextSettingsForm({ context, onClose }: ContextSettingsFormProps) {
             <SelectItem value="5">5 - Lowest</SelectItem>
           </SelectContent>
         </Select>
+		<p className="text-xs text-muted-foreground">
+          	Higher priority contexts are placed earlier during time distribution
+        </p>
       </div>
 
       <Separator />
@@ -221,33 +209,6 @@ function ContextSettingsForm({ context, onClose }: ContextSettingsFormProps) {
         />
         <p className="text-xs text-muted-foreground">
           Higher weights receive more time during distribution
-        </p>
-      </div>
-
-      <Separator />
-
-      {/* Important Dates */}
-      <div className="space-y-3">
-        <Label>Important Dates</Label>
-        <ImportantDateList dates={importantDates} onRemove={handleRemoveDate} />
-        <ImportantDateForm onAdd={handleAddDate} />
-      </div>
-
-      <Separator />
-
-      {/* Metadata */}
-      <div className="text-xs text-muted-foreground space-y-1">
-        <p>
-          Created:{' '}
-          {new Date(context.createdAt).toLocaleDateString(undefined, {
-            dateStyle: 'medium',
-          })}
-        </p>
-        <p>
-          Last updated:{' '}
-          {new Date(context.updatedAt).toLocaleDateString(undefined, {
-            dateStyle: 'medium',
-          })}
         </p>
       </div>
 

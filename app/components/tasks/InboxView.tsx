@@ -11,11 +11,15 @@ import { Button } from '@/components/ui/button';
 import { Inbox, Plus } from 'lucide-react';
 
 export function InboxView() {
-  const { getInboxTasks, state } = useStore();
+  const { getInboxTasks, updateTask, state } = useStore();
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const inboxTasks = getInboxTasks();
   const isDefinitionMode = state.mode === 'definition';
+
+  const handleUpdateDescription = (taskId: string, description: string) => {
+    updateTask(taskId, { description: description || undefined });
+  };
 
   return (
     <Card>
@@ -52,6 +56,7 @@ export function InboxView() {
             ) : undefined
           }
           onEditTask={isDefinitionMode ? setEditingTask : undefined}
+          onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
         />
       </CardContent>
 

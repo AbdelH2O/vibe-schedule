@@ -21,6 +21,7 @@ import {
   INITIAL_STATE,
 } from './types';
 import { loadState, saveState, generateId, now } from './storage';
+import { getDemoData } from './demoData';
 
 // Action types
 type Action =
@@ -48,7 +49,9 @@ type Action =
   | { type: 'ADD_PRESET'; payload: Omit<SessionPreset, 'id' | 'createdAt'> }
   | { type: 'DELETE_PRESET'; payload: string }
   // State hydration
-  | { type: 'HYDRATE'; payload: AppState };
+  | { type: 'HYDRATE'; payload: AppState }
+  // Demo data
+  | { type: 'LOAD_DEMO_DATA'; payload: { contexts: Context[]; tasks: Task[] } };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -243,6 +246,15 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...action.payload, presets: action.payload.presets || [] };
     }
 
+    // Demo data
+    case 'LOAD_DEMO_DATA': {
+      return {
+        ...state,
+        contexts: action.payload.contexts,
+        tasks: action.payload.tasks,
+      };
+    }
+
     default:
       return state;
   }
@@ -280,6 +292,8 @@ interface StoreContextType {
   getTasksByContextId: (contextId: string | null) => Task[];
   getInboxTasks: () => Task[];
   getPresets: () => SessionPreset[];
+  // Demo data
+  loadDemoData: () => void;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -425,6 +439,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const getPresets = useCallback(() => state.presets || [], [state.presets]);
 
+  // Demo data
+  const loadDemoData = useCallback(() => {
+    const { contexts, tasks } = getDemoData();
+    dispatch({ type: 'LOAD_DEMO_DATA', payload: { contexts, tasks } });
+  }, []);
+
   const value: StoreContextType = {
     state,
     isHydrated,
@@ -450,6 +470,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     getTasksByContextId,
     getInboxTasks,
     getPresets,
+    loadDemoData,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

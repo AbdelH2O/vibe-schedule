@@ -98,5 +98,6 @@ export interface SessionPreset {
   name: string;
   totalDuration: number; // minutes
   allocations: ContextAllocation[];
+  contextIds?: string[]; // which contexts were selected (for restoration)
   createdAt: string;
 }

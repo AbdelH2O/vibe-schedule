@@ -11,9 +11,11 @@ import { ContextDetailHeader } from './ContextDetailHeader';
 import { QuickAddTask } from './QuickAddTask';
 import { ContextSettingsSheet } from './ContextSettingsSheet';
 import { ImportantDateList } from './ImportantDateList';
+import { ImportantDateForm } from './ImportantDateForm';
 import { useStore } from '@/lib/store';
-import { ChevronDown, ChevronRight, CheckSquare, Plus } from 'lucide-react';
-import type { Context, Task } from '@/lib/types';
+import { generateId } from '@/lib/storage';
+import { ChevronDown, ChevronRight, CheckSquare, Plus, Flag } from 'lucide-react';
+import type { Context, Task, ImportantDate } from '@/lib/types';
 
 interface ContextDetailProps {
   context: Context;
@@ -21,11 +23,13 @@ interface ContextDetailProps {
 }
 
 export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
-  const { deleteContext, getTasksByContextId, state } = useStore();
+  const { deleteContext, getTasksByContextId, updateContext, updateTask, state } = useStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [showMilestones, setShowMilestones] = useState(true);
+  const [showAddMilestone, setShowAddMilestone] = useState(false);
 
   const contextTasks = getTasksByContextId(context.id);
   const isDefinitionMode = state.mode === 'definition';
@@ -40,6 +44,23 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
   };
 
   const importantDates = context.importantDates ?? [];
+
+  const handleAddDate = (date: Omit<ImportantDate, 'id'>) => {
+    const newDates = [...importantDates, { ...date, id: generateId() }];
+    updateContext(context.id, { importantDates: newDates });
+    setShowAddMilestone(false);
+  };
+
+  const handleRemoveDate = (id: string) => {
+    const newDates = importantDates.filter((d) => d.id !== id);
+    updateContext(context.id, {
+      importantDates: newDates.length > 0 ? newDates : undefined,
+    });
+  };
+
+  const handleUpdateDescription = (taskId: string, description: string) => {
+    updateTask(taskId, { description: description || undefined });
+  };
 
   return (
     <>
@@ -58,17 +79,64 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
 
         {/* Task list - primary content */}
         <div className="flex-1 overflow-y-auto" role="main" aria-label="Task list">
-          {/* Important dates - shown when present */}
-          {importantDates.length > 0 && (
-            <div className="px-4 pt-4 pb-2">
-              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                Important Dates
-              </h2>
-              <ImportantDateList dates={importantDates} className="space-y-1.5" />
+          {/* Milestones section - collapsible with inline management */}
+          {(importantDates.length > 0 || isDefinitionMode) && (
+            <div className="px-4 pt-3 pb-2 border-b border-border/50">
+              <div className="flex items-center justify-between mb-2">
+                <button
+                  onClick={() => setShowMilestones(!showMilestones)}
+                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide hover:text-foreground transition-colors"
+                  aria-expanded={showMilestones}
+                  aria-controls="milestones-section"
+                >
+                  {showMilestones ? (
+                    <ChevronDown className="size-3" aria-hidden="true" />
+                  ) : (
+                    <ChevronRight className="size-3" aria-hidden="true" />
+                  )}
+                  <Flag className="size-3" aria-hidden="true" />
+                  <span>Milestones{importantDates.length > 0 && ` (${importantDates.length})`}</span>
+                </button>
+                {isDefinitionMode && showMilestones && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-6"
+                    onClick={() => setShowAddMilestone(!showAddMilestone)}
+                    aria-label={showAddMilestone ? 'Cancel adding milestone' : 'Add milestone'}
+                  >
+                    <Plus
+                      className={`size-3.5 transition-transform ${showAddMilestone ? 'rotate-45' : ''}`}
+                      aria-hidden="true"
+                    />
+                  </Button>
+                )}
+              </div>
+
+              {showMilestones && (
+                <div id="milestones-section" className="space-y-2">
+                  {showAddMilestone && isDefinitionMode && (
+                    <ImportantDateForm onAdd={handleAddDate} compact />
+                  )}
+                  {importantDates.length > 0 ? (
+                    <ImportantDateList
+                      dates={importantDates}
+                      onRemove={isDefinitionMode ? handleRemoveDate : undefined}
+                      compact
+                    />
+                  ) : (
+                    !showAddMilestone && (
+                      <p className="text-xs text-muted-foreground italic">
+                        No milestones set
+                      </p>
+                    )
+                  )}
+                </div>
+              )}
             </div>
           )}
           {contextTasks.length === 0 ? (
-            <div className={importantDates.length > 0 ? 'px-4 pb-4' : 'p-4'}>
+            <div className="p-4">
               <EmptyState
                 icon={<CheckSquare />}
                 title="No tasks yet"
@@ -95,12 +163,13 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
               />
             </div>
           ) : (
-            <div className={importantDates.length > 0 ? 'px-4 pb-4 space-y-4' : 'p-4 space-y-4'}>
+            <div className="p-4 space-y-4">
               {/* Active tasks */}
               {activeTasks.length > 0 && (
                 <TaskList
                   tasks={activeTasks}
                   onEditTask={isDefinitionMode ? setEditingTask : undefined}
+                  onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
                 />
               )}
 
@@ -136,6 +205,7 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
                       <TaskList
                         tasks={completedTasks}
                         onEditTask={isDefinitionMode ? setEditingTask : undefined}
+                        onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
                       />
                     </div>
                   )}

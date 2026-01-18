@@ -13,6 +13,7 @@ export interface TaskListProps {
   emptyAction?: ReactNode;
   onEditTask?: (task: Task) => void;
   onDeleteTask?: (taskId: string) => void;
+  onUpdateDescription?: (taskId: string, description: string) => void;
 }
 
 export function TaskList({
@@ -22,6 +23,7 @@ export function TaskList({
   emptyAction,
   onEditTask,
   onDeleteTask,
+  onUpdateDescription,
 }: TaskListProps) {
   if (tasks.length === 0) {
     return (
@@ -43,6 +45,7 @@ export function TaskList({
           task={task}
           onEdit={onEditTask}
           onDelete={onDeleteTask}
+          onUpdateDescription={onUpdateDescription}
         />
       ))}
     </div>

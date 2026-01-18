@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -17,6 +18,7 @@ export interface TaskFormData {
   title: string;
   contextId: string | null;
   deadline: string;
+  description: string;
 }
 
 export interface TaskFormProps {
@@ -40,6 +42,7 @@ export function TaskForm({
     initialData?.contextId ?? contextId
   );
   const [deadline, setDeadline] = useState(initialData?.deadline ?? '');
+  const [description, setDescription] = useState(initialData?.description ?? '');
 
   const contexts = state.contexts;
 
@@ -53,6 +56,7 @@ export function TaskForm({
       title: title.trim(),
       contextId: selectedContextId,
       deadline: deadline || '',
+      description: description.trim(),
     });
   };
 
@@ -99,6 +103,17 @@ export function TaskForm({
           type="date"
           value={deadline}
           onChange={(e) => setDeadline(e.target.value)}
+        />
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor="task-description">Description (optional)</Label>
+        <Textarea
+          id="task-description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Add notes, context, or details..."
+          rows={3}
         />
       </div>
 

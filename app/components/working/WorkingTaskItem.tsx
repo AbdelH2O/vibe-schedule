@@ -3,7 +3,6 @@
 import { useCallback, useSyncExternalStore, useState, useRef, useEffect, useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
-import { ChevronDown, ChevronUp } from 'lucide-react';
 import type { Task } from '@/lib/types';
 import type { ContextColorName } from '@/lib/colors';
 
@@ -61,7 +60,6 @@ export function WorkingTaskItem({
     () => ''
   );
 
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [draftDescription, setDraftDescription] = useState(task.description ?? '');
   const [isHovering, setIsHovering] = useState(false);
@@ -74,7 +72,6 @@ export function WorkingTaskItem({
   }, [task.id]);
 
   const hasDescription = task.description && task.description.trim().length > 0;
-  const isLongDescription = hasDescription && task.description!.length > 150;
 
   // Auto-focus textarea when editing starts
   useEffect(() => {
@@ -105,17 +102,11 @@ export function WorkingTaskItem({
   const handleSaveDescription = useCallback(() => {
     onUpdateDescription?.(draftDescription.trim());
     setIsEditing(false);
-    if (!draftDescription.trim()) {
-      setIsExpanded(false);
-    }
   }, [draftDescription, onUpdateDescription]);
 
   const handleCancelEdit = useCallback(() => {
     setDraftDescription(task.description ?? '');
     setIsEditing(false);
-    if (!task.description?.trim()) {
-      setIsExpanded(false);
-    }
   }, [task.description]);
 
   const handleKeyDown = useCallback(
@@ -132,20 +123,7 @@ export function WorkingTaskItem({
     [handleCancelEdit, handleSaveDescription]
   );
 
-  const handleExpandClick = useCallback(() => {
-    if (!isExpanded) {
-      setIsExpanded(true);
-      if (!hasDescription) {
-        setIsEditing(true);
-      }
-    } else {
-      setIsExpanded(false);
-      setIsEditing(false);
-    }
-  }, [isExpanded, hasDescription]);
-
   const handleAddDetailsClick = useCallback(() => {
-    setIsExpanded(true);
     setIsEditing(true);
   }, []);
 
@@ -200,26 +178,10 @@ export function WorkingTaskItem({
             >
               {task.title}
             </label>
-
-            {/* Expand/collapse button for tasks with description */}
-            {hasDescription && (
-              <button
-                type="button"
-                onClick={handleExpandClick}
-                className="shrink-0 p-1 -mr-1 text-muted-foreground hover:text-foreground transition-colors"
-                aria-label={isExpanded ? 'Collapse details' : 'Expand details'}
-              >
-                {isExpanded ? (
-                  <ChevronUp className="size-4" />
-                ) : (
-                  <ChevronDown className="size-4" />
-                )}
-              </button>
-            )}
           </div>
 
           {/* Add details link - shows on hover when no description */}
-          {!hasDescription && !isExpanded && (
+          {!hasDescription && !isEditing && (
             <button
               type="button"
               onClick={handleAddDetailsClick}
@@ -232,61 +194,48 @@ export function WorkingTaskItem({
             </button>
           )}
 
-          {/* Description preview when collapsed (truncated if long) */}
-          {hasDescription && !isExpanded && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
+          {/* Description preview - click to edit */}
+          {hasDescription && !isEditing && (
+            <button
+              type="button"
+              onClick={onUpdateDescription ? handleDescriptionClick : undefined}
+              className={cn(
+                'text-sm text-muted-foreground mt-1 line-clamp-2 text-left',
+                onUpdateDescription && 'cursor-pointer hover:text-foreground transition-colors'
+              )}
+            >
               {task.description}
-            </p>
+            </button>
           )}
 
-          {/* Expanded description area */}
-          {isExpanded && (
+          {/* Edit description area */}
+          {isEditing && (
             <div className="mt-3 animate-expand-description">
-              {isEditing ? (
-                <div className="space-y-2">
-                  <textarea
-                    ref={textareaRef}
-                    value={draftDescription}
-                    onChange={(e) => setDraftDescription(e.target.value)}
-                    onBlur={handleSaveDescription}
-                    onKeyDown={handleKeyDown}
-                    placeholder={placeholder}
-                    className={cn(
-                      'w-full min-h-[80px] p-3 text-sm rounded-md resize-none',
-                      'bg-background border border-input text-foreground',
-                      'focus:outline-none focus:ring-2 focus:ring-ring/30'
-                    )}
-                    rows={3}
-                  />
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>
-                      <kbd className="px-1 py-0.5 rounded bg-muted font-mono">Esc</kbd> to cancel
-                    </span>
-                    <span>
-                      <kbd className="px-1 py-0.5 rounded bg-muted font-mono">⌘</kbd>+
-                      <kbd className="px-1 py-0.5 rounded bg-muted font-mono">Enter</kbd> to save
-                    </span>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleDescriptionClick}
+              <div className="space-y-2">
+                <textarea
+                  ref={textareaRef}
+                  value={draftDescription}
+                  onChange={(e) => setDraftDescription(e.target.value)}
+                  onBlur={handleSaveDescription}
+                  onKeyDown={handleKeyDown}
+                  placeholder={placeholder}
                   className={cn(
-                    'w-full text-left p-3 rounded-md transition-colors',
-                    'bg-muted/50 hover:bg-muted',
-                    'text-sm text-foreground'
+                    'w-full min-h-[80px] p-3 text-sm rounded-md resize-none',
+                    'bg-background border border-input text-foreground',
+                    'focus:outline-none focus:ring-2 focus:ring-ring/30'
                   )}
-                >
-                  {hasDescription ? (
-                    <span className={isLongDescription && !isExpanded ? 'line-clamp-3' : ''}>
-                      {task.description}
-                    </span>
-                  ) : (
-                    <span className="text-muted-foreground italic">{placeholder}</span>
-                  )}
-                </button>
-              )}
+                  rows={3}
+                />
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span>
+                    <kbd className="px-1 py-0.5 rounded bg-muted font-mono">Esc</kbd> to cancel
+                  </span>
+                  <span>
+                    <kbd className="px-1 py-0.5 rounded bg-muted font-mono">⌘</kbd>+
+                    <kbd className="px-1 py-0.5 rounded bg-muted font-mono">Enter</kbd> to save
+                  </span>
+                </div>
+              </div>
             </div>
           )}
         </div>
