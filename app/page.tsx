@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ClientProvider } from './components/ClientProvider';
 import { AppShell } from './components/AppShell';
 import { ModeIndicator } from './components/ModeIndicator';
@@ -31,6 +31,30 @@ function HomeContent() {
 
   // Check if we have a suspended session to show the banner
   const hasSuspendedSession = state.session?.status === 'suspended';
+
+  // Global keyboard shortcut: Cmd/Ctrl + S to resume or start session
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Cmd/Ctrl + S
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+
+        // Don't trigger when typing in inputs
+        if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+          return;
+        }
+
+        if (state.session?.status === 'suspended') {
+          resumeSession();
+        } else {
+          setSessionDialogOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state.session?.status, resumeSession]);
 
   // Render Working Mode when in working mode with active session
   if (state.mode === 'working' && state.session) {

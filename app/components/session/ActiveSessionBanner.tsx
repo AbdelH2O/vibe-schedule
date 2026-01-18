@@ -1,9 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Session, Context } from '@/lib/types';
 import { Play, X, Trash2 } from 'lucide-react';
+
+// Hook to detect Mac vs Windows/Linux for keyboard shortcut display
+function useIsMac() {
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(navigator.platform.toUpperCase().includes('MAC'));
+  }, []);
+  return isMac;
+}
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +39,7 @@ export function ActiveSessionBanner({
 }: ActiveSessionBannerProps) {
   const [showDiscardDialog, setShowDiscardDialog] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const isMac = useIsMac();
 
   if (dismissed) {
     return null;
@@ -76,6 +86,9 @@ export function ActiveSessionBanner({
             >
               <Play className="size-3.5" />
               Resume Session
+              <kbd className="ml-1 px-1.5 py-0.5 rounded bg-primary-foreground/20 text-[10px] font-mono">
+                {isMac ? '⌘S' : 'Ctrl+S'}
+              </kbd>
             </Button>
             <Button
               variant="ghost"

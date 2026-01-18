@@ -156,22 +156,27 @@ export function WorkingTaskItem({
   return (
     <div
       className={cn(
-        'group relative transition-all duration-200',
-        'task-card-context'
+        'group relative transition-all duration-200 rounded-md border',
+        'bg-white'
       )}
       data-completed={task.completed ? 'true' : undefined}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
       {/* Color indicator dot - uses CSS variable for consistency with page tint */}
-      <span
-        className="absolute top-3 left-3 size-2.5 rounded-full"
+      {/* <span
+        className="absolute top-1/2 left-3 size-2.5 rounded-full"
         style={{ backgroundColor: 'var(--context-dot)' }}
         aria-hidden="true"
-      />
+      /> */}
 
       {/* Main task row */}
       <div className="flex items-start gap-4 p-4 pl-8">
+		{/* <span
+			className="size-2.5 rounded-full mt-1.5 -ml-4"
+			style={{ backgroundColor: 'var(--context-dot)' }}
+			aria-hidden="true"
+		/> */}
         <Checkbox
           id={`task-${task.id}`}
           checked={task.completed}

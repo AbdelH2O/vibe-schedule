@@ -1,11 +1,20 @@
 'use client';
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { useStore } from '@/lib/store';
 import { calculateAllocations } from '@/lib/allocation';
 import { Target, Scale, Clock, Settings, X } from 'lucide-react';
 import type { SessionPreset } from '@/lib/types';
+
+// Hook to detect Mac vs Windows/Linux for keyboard shortcut display
+function useIsMac() {
+  const [isMac, setIsMac] = useState(false);
+  useEffect(() => {
+    setIsMac(navigator.platform.toUpperCase().includes('MAC'));
+  }, []);
+  return isMac;
+}
 
 interface SessionSuggestionsProps {
   onOpenCustomDialog: () => void;
@@ -15,6 +24,7 @@ export function SessionSuggestions({ onOpenCustomDialog }: SessionSuggestionsPro
   const { state, startSession, getTasksByContextId, getPresets, deletePreset } = useStore();
   const { contexts } = state;
   const presets = getPresets();
+  const isMac = useIsMac();
 
   // Find the highest priority context with incomplete tasks
   const topContext = useMemo(() => {
@@ -111,10 +121,13 @@ export function SessionSuggestions({ onOpenCustomDialog }: SessionSuggestionsPro
         size="lg"
       >
         <Settings className="size-5 mr-3" aria-hidden="true" />
-        <div className="flex flex-col items-start text-left">
+        <div className="flex flex-col items-start text-left flex-1">
           <span className="font-semibold">Start Custom Session</span>
           <span className="text-xs opacity-80">Configure duration & allocation</span>
         </div>
+        <kbd className="ml-3 px-2 py-1 rounded bg-primary-foreground/20 text-xs font-mono">
+          {isMac ? '⌘S' : 'Ctrl+S'}
+        </kbd>
       </Button>
 
       {/* Quick Start Presets */}

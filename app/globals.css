@@ -256,7 +256,7 @@
 
 /* Working mode background - subtle fixed tint */
 .working-gradient {
-  background: color-mix(in oklch, var(--context-color) 8%, var(--background));
+  background: var(--context-color);
 }
 
 /* Header accent bar */
