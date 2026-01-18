@@ -24,6 +24,7 @@ export interface ImportantDate {
 export interface Task {
   id: string;
   title: string;
+  description?: string; // Optional task details
   contextId: string | null; // null = inbox
   deadline?: string; // ISO date string, display only
   completed: boolean;

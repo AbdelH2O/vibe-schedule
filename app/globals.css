@@ -242,3 +242,67 @@
 .transition-mode {
   transition: all 0.3s ease-out;
 }
+
+/* Context color system for immersive working mode */
+/* These CSS variables are set dynamically via inline styles based on active context */
+:root {
+  --context-color: oklch(0.60 0.18 250);      /* Default: blue */
+  --context-color-light: oklch(0.85 0.08 250); /* Lighter variant for backgrounds */
+
+  /* Simple task card system - subtle tint with color indicators */
+  --card-bg: oklch(0.97 0.015 250);           /* Subtle tint background */
+  --container-bg: oklch(0.96 0.015 250);      /* Container tint */
+}
+
+/* Working mode background - subtle fixed tint */
+.working-gradient {
+  background: color-mix(in oklch, var(--context-color) 8%, var(--background));
+}
+
+/* Header accent bar */
+.context-accent-bar {
+  height: 4px;
+  background: var(--context-color);
+}
+
+/* Task card with subtle context tint + color indicator */
+.task-card-context {
+  border-radius: 0.75rem;
+  background: var(--card-bg);
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.05),
+    0 1px 3px oklch(0 0 0 / 0.05);
+}
+
+/* Completed state - muted */
+.task-card-context[data-completed="true"] {
+  opacity: 0.6;
+}
+
+/* Task container with subtle context tint */
+.task-container-context {
+  background: var(--container-bg);
+  border-radius: 0.75rem;
+}
+
+/* Context checkbox accent */
+.context-checkbox[data-state="checked"] {
+  background: var(--context-color);
+  border-color: var(--context-color);
+}
+
+/* Animation for description expansion */
+@keyframes expand-description {
+  from {
+    opacity: 0;
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    max-height: 200px;
+  }
+}
+
+.animate-expand-description {
+  animation: expand-description 0.3s ease-out forwards;
+}

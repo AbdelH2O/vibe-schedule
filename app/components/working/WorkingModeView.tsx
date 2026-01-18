@@ -3,12 +3,13 @@
 import { useStore } from '@/lib/store';
 import { initializeAudio, playChime, playCompletion } from '@/lib/notifications';
 import { getElapsedSeconds } from '@/lib/timer';
+import { getContextColor } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useCallback, useState, useRef } from 'react';
+import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { ActiveContextPanel } from './ActiveContextPanel';
 import { SessionTimer } from './SessionTimer';
-import { ContextSwitcher } from './ContextSwitcher';
+import { ContextDropdown, type ContextDropdownRef } from './ContextDropdown';
 import { WorkingTaskList } from './WorkingTaskList';
 import type { WorkingQuickAddRef } from './WorkingQuickAdd';
 import { SessionControls } from './SessionControls';
@@ -21,6 +22,26 @@ export function WorkingModeView() {
   const [showSummary, setShowSummary] = useState(false);
   const [showEndDialog, setShowEndDialog] = useState(false);
   const quickAddRef = useRef<WorkingQuickAddRef>(null);
+  const contextDropdownRef = useRef<ContextDropdownRef>(null);
+
+  // Get active context for theming
+  const activeContext = useMemo(() => {
+    if (!session?.activeContextId) return null;
+    return getContextById(session.activeContextId);
+  }, [session?.activeContextId, getContextById]);
+
+  // Get context color for CSS variables (subtle tint system)
+  const contextColorStyle = useMemo(() => {
+    const colorName = activeContext?.color ?? 'blue';
+    const colors = getContextColor(colorName);
+
+    return {
+      '--context-color': colors.gradient,
+      '--context-dot': colors.dotColor,  // Consistent OKLCH dot color
+      '--card-bg': `oklch(0.97 0.015 ${colors.hue})`,  // Subtle tint
+      '--container-bg': colors.containerBg,
+    } as React.CSSProperties;
+  }, [activeContext?.color]);
 
   // Initialize audio on first render (after user gesture from starting session)
   useEffect(() => {
@@ -60,6 +81,12 @@ export function WorkingModeView() {
       if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         quickAddRef.current?.focus();
+      }
+
+      // 'c' to open context dropdown
+      if (e.key === 'c' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        contextDropdownRef.current?.open();
       }
     };
 
@@ -117,10 +144,6 @@ export function WorkingModeView() {
     return null;
   }
 
-  const activeContext = session.activeContextId
-    ? getContextById(session.activeContextId)
-    : null;
-
   const activeAllocation = session.allocations.find(
     (a) => a.contextId === session.activeContextId
   );
@@ -128,10 +151,16 @@ export function WorkingModeView() {
   const isPaused = session.status === 'paused';
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      {/* Header with session timer */}
-      <header aria-label="Session controls" className="border-b bg-card px-4 sm:px-6 py-4">
-        <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
+    <div
+      className="min-h-screen pb-20 working-gradient"
+      style={contextColorStyle}
+    >
+      {/* Context accent bar at top */}
+      <div className="context-accent-bar" aria-hidden="true" />
+
+      {/* Header with session timer and context dropdown */}
+      <header aria-label="Session controls" className="border-b bg-card/80 backdrop-blur-sm px-4 sm:px-6 py-4">
+        <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
@@ -143,8 +172,12 @@ export function WorkingModeView() {
               <span className="hidden sm:inline">Back to Planning</span>
               <span className="sm:hidden">Back</span>
             </Button>
-            <h1 className="text-lg sm:text-xl font-semibold">Working Mode</h1>
           </div>
+
+          {/* Context dropdown - center */}
+          <ContextDropdown ref={contextDropdownRef} session={session} />
+
+          {/* Session timer - right */}
           <SessionTimer
             session={session}
             onSessionExhausted={handleSessionExhausted}
@@ -152,36 +185,32 @@ export function WorkingModeView() {
         </div>
       </header>
 
-      {/* Main content area */}
-      <div id="main-content" className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
-          {/* Main panel - Active context and tasks */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Active context panel */}
-            {activeContext && activeAllocation ? (
-              <ActiveContextPanel
-                context={activeContext}
-                allocation={activeAllocation}
-                contextStartedAt={session.contextStartedAt}
-                isPaused={isPaused}
-                onTimeExhausted={handleContextTimeExhausted}
-              />
-            ) : (
-              <div className="p-6 border rounded-lg bg-card">
-                <p className="text-muted-foreground">No active context</p>
-              </div>
-            )}
+      {/* Main content area - single column layout */}
+      <div id="main-content" className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+        <div className="space-y-6">
+          {/* Active context panel */}
+          {activeContext && activeAllocation ? (
+            <ActiveContextPanel
+              context={activeContext}
+              allocation={activeAllocation}
+              contextStartedAt={session.contextStartedAt}
+              isPaused={isPaused}
+              onTimeExhausted={handleContextTimeExhausted}
+            />
+          ) : (
+            <div className="p-6 border rounded-lg bg-card">
+              <p className="text-muted-foreground">No active context</p>
+            </div>
+          )}
 
-            {/* Tasks for active context */}
-            {session.activeContextId && (
-              <WorkingTaskList ref={quickAddRef} contextId={session.activeContextId} />
-            )}
-          </div>
-
-          {/* Sidebar - Context switcher */}
-          <div className="space-y-6">
-            <ContextSwitcher session={session} />
-          </div>
+          {/* Tasks for active context - full width, prominent */}
+          {session.activeContextId && (
+            <WorkingTaskList
+              ref={quickAddRef}
+              contextId={session.activeContextId}
+              contextColor={activeContext?.color}
+            />
+          )}
         </div>
       </div>
 
@@ -195,8 +224,8 @@ export function WorkingModeView() {
       )}
 
       {/* Footer with session controls */}
-      <footer aria-label="Session actions" className="fixed bottom-0 left-0 right-0 border-t bg-card px-4 sm:px-6 py-3 sm:py-4 z-50">
-        <div className="max-w-6xl mx-auto flex justify-end gap-2 sm:gap-4">
+      <footer aria-label="Session actions" className="fixed bottom-0 left-0 right-0 border-t bg-card/80 backdrop-blur-sm px-4 sm:px-6 py-3 sm:py-4 z-50">
+        <div className="max-w-4xl mx-auto flex justify-end gap-2 sm:gap-4">
           <SessionControls
             onEndSession={prepareEndSession}
             isPaused={isPaused}
