@@ -9,8 +9,9 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { getDaysRemaining, getCountdownStatus } from '@/lib/dates';
-import { AlertCircle } from 'lucide-react';
+import { getDaysRemaining } from '@/lib/dates';
+import { useStore } from '@/lib/store';
+import { CountdownBadge } from '@/app/components/shared/CountdownBadge';
 import type { Context } from '@/lib/types';
 
 interface ContextListItemProps {
@@ -42,22 +43,23 @@ export function ContextListItem({
   isSelected,
   onClick,
 }: ContextListItemProps) {
-  // Check for upcoming deadlines (within 7 days or overdue)
-  const hasUpcomingDeadline = context.importantDates?.some((date) => {
-    const days = getDaysRemaining(date.date);
-    return days <= 7;
-  });
+  const { getTasksByContextId } = useStore();
+  const taskCount = getTasksByContextId(context.id).length;
 
-  // Find the most urgent deadline status
-  const urgentStatus = context.importantDates?.reduce<'overdue' | 'soon' | 'upcoming' | null>(
-    (worst, date) => {
-      const status = getCountdownStatus(getDaysRemaining(date.date));
-      if (status === 'overdue') return 'overdue';
-      if (status === 'soon' && worst !== 'overdue') return 'soon';
-      return worst;
+  // Find the nearest important date (most urgent)
+  const nearestDate = context.importantDates?.reduce<{ date: string; days: number } | null>(
+    (nearest, importantDate) => {
+      const days = getDaysRemaining(importantDate.date);
+      if (nearest === null || days < nearest.days) {
+        return { date: importantDate.date, days };
+      }
+      return nearest;
     },
     null
   );
+
+  // Show countdown badge for dates within 14 days or overdue
+  const showCountdownBadge = nearestDate && nearestDate.days <= 14;
 
   return (
     <TooltipProvider>
@@ -87,15 +89,23 @@ export function ContextListItem({
               {/* Context name with truncation */}
               <span className="truncate flex-1">{context.name}</span>
 
-              {/* Deadline indicator */}
-              {hasUpcomingDeadline && (
-                <AlertCircle
-                  className={cn(
-                    'size-4 shrink-0',
-                    urgentStatus === 'overdue' && 'text-destructive',
-                    urgentStatus === 'soon' && 'text-amber-500'
-                  )}
-                  aria-label="Has upcoming deadline"
+              {/* Task count badge */}
+              {taskCount > 0 && (
+                <Badge
+                  variant="secondary"
+                  className="shrink-0 text-xs px-1.5 py-0 bg-muted"
+                  aria-label={`${taskCount} ${taskCount === 1 ? 'task' : 'tasks'}`}
+                >
+                  {taskCount}
+                </Badge>
+              )}
+
+              {/* Deadline countdown badge */}
+              {showCountdownBadge && nearestDate && (
+                <CountdownBadge
+                  date={nearestDate.date}
+                  className="shrink-0"
+                  showIcon={false}
                 />
               )}
             </div>
@@ -104,7 +114,7 @@ export function ContextListItem({
         <TooltipContent side="right" className="max-w-xs">
           <p className="font-medium">{context.name}</p>
           <p className="text-xs text-muted-foreground">
-            Priority: {context.priority} | Weight: {context.weight}
+            Priority: {context.priority} | Weight: {context.weight} | {taskCount} {taskCount === 1 ? 'task' : 'tasks'}
           </p>
         </TooltipContent>
       </Tooltip>

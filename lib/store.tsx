@@ -42,6 +42,7 @@ type Action =
   | { type: 'END_SESSION' }
   | { type: 'PAUSE_SESSION' }
   | { type: 'RESUME_SESSION' }
+  | { type: 'SUSPEND_SESSION'; payload: { elapsedMinutes: number } }
   // State hydration
   | { type: 'HYDRATE'; payload: AppState };
 
@@ -189,9 +190,30 @@ function reducer(state: AppState, action: Action): AppState {
     }
     case 'RESUME_SESSION': {
       if (!state.session) return state;
+      // Handle resuming from both 'paused' and 'suspended' statuses
       return {
         ...state,
+        mode: 'working',
         session: { ...state.session, status: 'active', contextStartedAt: now() },
+      };
+    }
+    case 'SUSPEND_SESSION': {
+      if (!state.session) return state;
+      // Update active context's usedMinutes with elapsed time
+      const updatedAllocations = state.session.allocations.map((alloc) =>
+        alloc.contextId === state.session!.activeContextId
+          ? { ...alloc, usedMinutes: alloc.usedMinutes + action.payload.elapsedMinutes }
+          : alloc
+      );
+      return {
+        ...state,
+        mode: 'definition',
+        session: {
+          ...state.session,
+          allocations: updatedAllocations,
+          status: 'suspended',
+          contextStartedAt: null,
+        },
       };
     }
 
@@ -228,6 +250,7 @@ interface StoreContextType {
   endSession: () => void;
   pauseSession: () => void;
   resumeSession: () => void;
+  suspendSession: (elapsedMinutes: number) => void;
   // Selectors
   getContextById: (id: string) => Context | undefined;
   getTasksByContextId: (contextId: string | null) => Task[];
@@ -342,6 +365,10 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'RESUME_SESSION' });
   }, []);
 
+  const suspendSession = useCallback((elapsedMinutes: number) => {
+    dispatch({ type: 'SUSPEND_SESSION', payload: { elapsedMinutes } });
+  }, []);
+
   // Selectors
   const getContextById = useCallback(
     (id: string) => state.contexts.find((ctx) => ctx.id === id),
@@ -377,6 +404,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     endSession,
     pauseSession,
     resumeSession,
+    suspendSession,
     getContextById,
     getTasksByContextId,
     getInboxTasks,

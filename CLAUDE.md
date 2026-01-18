@@ -40,6 +40,42 @@ pnpm lint         # Run ESLint
 - Browser localStorage (single-device, offline-capable) (001-foundation-data-model)
 - TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Lucide React, Radix UI primitives (002-context-management)
 - Browser localStorage (via lib/storage.ts utilities) (002-context-management)
+- TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3 + shadcn/ui, Lucide React, Radix UI primitives (004-time-allocation)
+- Browser localStorage (via existing lib/storage.ts utilities) (005-working-mode)
+- TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Tailwind CSS 4, Lucide React, Radix UI primitives (006-polish-indicators)
+- Sonner toast notifications for error feedback (006-polish-indicators)
+
+## Patterns & Conventions (006-polish-indicators)
+
+### Deadline Urgency System
+- `DeadlineUrgency` type: 'overdue' | 'urgent' | 'warning' | 'neutral'
+- `getDeadlineUrgency()` and `formatCountdownWithUrgency()` in lib/dates.ts
+- `getUrgencyColorClass()` in lib/utils.ts for consistent color mapping
+- Use `CountdownBadge` component for deadline display
+
+### Time Progress Visualization
+- `TimeProgressStatus` type: 'normal' | 'warning' | 'urgent' | 'overtime'
+- Thresholds: 75% (warning), 90% (urgent), 100%+ (overtime)
+- `getTimeProgress()` in lib/dates.ts for calculations
+- `getProgressColorClass()` in lib/utils.ts for color mapping
+- `TimeProgressBar` component for consistent progress display
+
+### Accessibility
+- Use `useSyncExternalStore` for announcements to avoid setState in effects (React 19)
+- Skip-to-content link in app/layout.tsx targeting `#main-content`
+- aria-live regions for dynamic content announcements
+- min-h-[44px] for touch targets on mobile
+
+### Error Handling
+- Next.js error.tsx for error boundaries
+- Sonner toasts for storage errors and user feedback
+- Toast deduplication via flags in lib/storage.ts
+
+### Animations
+- `animate-pulse-slow` for overtime indicators (2s cycle)
+- `animate-fade-in` for mode transitions (0.3s)
+- CSS keyframes in app/globals.css
 
 ## Recent Changes
 - 001-foundation-data-model: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3
+- 006-polish-indicators: Added deadline countdown indicators, time progress visualizations, mode transition feedback, empty state guidance, responsive design improvements, accessibility enhancements, and error handling
