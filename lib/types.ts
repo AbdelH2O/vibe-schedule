@@ -1,9 +1,12 @@
 // Core entity types for Vibe-Schedule
 
+import type { ContextColorName } from './colors';
+
 export interface Context {
   id: string;
   name: string;
   priority: number; // 1-5, where 1 = highest priority, 5 = lowest
+  color: ContextColorName; // Color for visual differentiation
   minDuration?: number; // minutes
   maxDuration?: number; // minutes
   weight: number; // relative weight for time distribution (default 1)
@@ -54,6 +57,7 @@ export interface AppState {
   tasks: Task[];
   mode: AppMode;
   session: Session | null;
+  presets: SessionPreset[];
 }
 
 // Default/initial state
@@ -62,6 +66,7 @@ export const INITIAL_STATE: AppState = {
   tasks: [],
   mode: 'definition',
   session: null,
+  presets: [],
 };
 
 // Inbox constant - tasks with contextId: null are in inbox
@@ -84,4 +89,13 @@ export interface TimeProgress {
   percentage: number; // 0-100+, can exceed 100 for overtime
   status: TimeProgressStatus;
   remaining: number; // minutes, negative if overtime
+}
+
+// User-saved session presets
+export interface SessionPreset {
+  id: string;
+  name: string;
+  totalDuration: number; // minutes
+  allocations: ContextAllocation[];
+  createdAt: string;
 }

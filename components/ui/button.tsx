@@ -36,16 +36,21 @@ const buttonVariants = cva(
   }
 )
 
+interface ButtonProps extends React.ComponentProps<"button">,
+  VariantProps<typeof buttonVariants> {
+  asChild?: boolean;
+  shortcut?: string;
+}
+
 function Button({
   className,
   variant = "default",
   size = "default",
   asChild = false,
+  shortcut,
+  children,
   ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
+}: ButtonProps) {
   const Comp = asChild ? Slot : "button"
 
   return (
@@ -53,9 +58,16 @@ function Button({
       data-slot="button"
       data-variant={variant}
       data-size={size}
-      className={cn(buttonVariants({ variant, size, className }))}
+      className={cn(buttonVariants({ variant, size, className }), "relative group/button")}
       {...props}
-    />
+    >
+      {children}
+      {shortcut && (
+        <kbd className="hidden sm:inline-flex ml-2 px-1.5 py-0.5 text-[10px] font-mono bg-background/50 rounded border border-border/50 opacity-60 group-hover/button:opacity-100 transition-opacity">
+          {shortcut}
+        </kbd>
+      )}
+    </Comp>
   )
 }
 

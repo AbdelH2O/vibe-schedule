@@ -9,16 +9,11 @@ import { InboxView } from './components/tasks/InboxView';
 import { SessionSetupDialog } from './components/session/SessionSetupDialog';
 import { ActiveSessionBanner } from './components/session/ActiveSessionBanner';
 import { WorkingModeView } from './components/working/WorkingModeView';
+import { CreateContextDialog } from './components/contexts/CreateContextDialog';
+import { QuickCaptureBar } from './components/home/QuickCaptureBar';
+import { ContextCardGrid } from './components/home/ContextCardGrid';
+import { SessionSuggestions } from './components/home/SessionSuggestions';
 import { useStore } from '@/lib/store';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Layers, Play, RefreshCw } from 'lucide-react';
 
 type Selection =
   | { type: 'inbox' }
@@ -29,6 +24,7 @@ function HomeContent() {
   const { state, getContextById, resumeSession, endSession } = useStore();
   const [selection, setSelection] = useState<Selection>(null);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
+  const [createContextOpen, setCreateContextOpen] = useState(false);
 
   // Compute mode announcement text - displayed via aria-live region
   const modeAnnouncement = state.mode === 'definition' ? 'Definition Mode' : 'Working Mode';
@@ -68,15 +64,17 @@ function HomeContent() {
   };
 
   return (
-    <>
+    <div className="flex flex-col h-screen overflow-hidden">
       <ModeAnnouncementRegion mode={state.mode} announcement={modeAnnouncement} />
       {hasSuspendedSession && state.session && (
-        <ActiveSessionBanner
-          session={state.session}
-          contexts={state.contexts}
-          onResume={resumeSession}
-          onDiscard={endSession}
-        />
+        <div className="shrink-0">
+          <ActiveSessionBanner
+            session={state.session}
+            contexts={state.contexts}
+            onResume={resumeSession}
+            onDiscard={endSession}
+          />
+        </div>
       )}
       <AppShell
         headerRightContent={<ModeIndicator />}
@@ -96,105 +94,23 @@ function HomeContent() {
             onDeleted={() => setSelection(null)}
           />
         ) : (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">
-                Welcome to Vibe-Schedule
-              </CardTitle>
-              <CardDescription>
-                A context-driven productivity system that blends task management
-                with flexible time allocation.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                <Card className="py-4">
-                  <CardHeader className="pb-2 pt-0">
-                    <CardDescription className="text-xs uppercase tracking-wide">
-                      Mode
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-lg font-semibold capitalize">
-                      {state.mode}
-                    </p>
-                  </CardContent>
-                </Card>
+          <div className="space-y-6">
+            {/* Quick Capture Bar */}
+            <QuickCaptureBar onNavigateToInbox={handleSelectInbox} />
 
-                <Card className="py-4">
-                  <CardHeader className="pb-2 pt-0">
-                    <CardDescription className="text-xs uppercase tracking-wide">
-                      Contexts
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-lg font-semibold">
-                      {state.contexts.length}
-                    </p>
-                  </CardContent>
-                </Card>
+            {/* Context Cards Grid */}
+            <ContextCardGrid
+              onSelectContext={setSelectedContextId}
+              onCreateContext={() => setCreateContextOpen(true)}
+            />
 
-                <Card className="py-4">
-                  <CardHeader className="pb-2 pt-0">
-                    <CardDescription className="text-xs uppercase tracking-wide">
-                      Tasks
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-lg font-semibold">{state.tasks.length}</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {state.contexts.length === 0 ? (
-                <div className="mt-6 p-6 border rounded-lg bg-muted/50 text-center">
-                  <Layers className="size-12 mx-auto text-muted-foreground mb-3" aria-hidden="true" />
-                  <h3 className="font-medium mb-1">Get started</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Create your first context using the sidebar to organize your
-                    work.
-                  </p>
-                </div>
-              ) : state.mode === 'definition' && (
-                <div className="mt-6 flex flex-col items-center gap-3">
-                  {state.session?.status === 'suspended' ? (
-                    <>
-                      <p className="text-sm text-muted-foreground">
-                        You have a suspended session
-                      </p>
-                      <div className="flex gap-2">
-                        <Button size="lg" onClick={resumeSession} className="gap-2">
-                          <Play className="size-4" />
-                          Continue Session
-                        </Button>
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          onClick={() => {
-                            endSession();
-                            setSessionDialogOpen(true);
-                          }}
-                          className="gap-2"
-                        >
-                          <RefreshCw className="size-4" />
-                          Start New
-                        </Button>
-                      </div>
-                    </>
-                  ) : (
-                    <Button
-                      size="lg"
-                      onClick={() => setSessionDialogOpen(true)}
-                      className="gap-2"
-                    >
-                      <Play className="size-4" />
-                      Start Session
-                    </Button>
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+            {/* Session Suggestions */}
+            {state.mode === 'definition' && (
+              <SessionSuggestions
+                onOpenCustomDialog={() => setSessionDialogOpen(true)}
+              />
+            )}
+          </div>
         )}
         </div>
 
@@ -202,8 +118,12 @@ function HomeContent() {
           open={sessionDialogOpen}
           onOpenChange={setSessionDialogOpen}
         />
+        <CreateContextDialog
+          open={createContextOpen}
+          onOpenChange={setCreateContextOpen}
+        />
       </AppShell>
-    </>
+    </div>
   );
 }
 

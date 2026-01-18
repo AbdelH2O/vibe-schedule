@@ -51,7 +51,7 @@ export function AppShell({
   };
 
   return (
-    <div className="flex flex-col h-screen bg-background">
+    <div className="flex flex-col flex-1 min-h-0 bg-background">
       <Header
         onMenuClick={() => setSidebarOpen(true)}
         rightContent={headerRightContent}
@@ -59,16 +59,18 @@ export function AppShell({
 
       <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex w-64 border-r bg-background">
-          <SidebarContent
-            className="flex-1"
-            selectedContextId={selectedContextId}
-            onSelectContext={handleSelectContext}
-            isInboxSelected={isInboxSelected}
-            onSelectInbox={handleSelectInbox}
-            isHomeSelected={isHomeSelected}
-            onSelectHome={handleSelectHome}
-          />
+        <aside aria-label="Main navigation" className="hidden lg:flex w-64 border-r bg-background">
+          <nav className="flex-1">
+            <SidebarContent
+              className="flex-1"
+              selectedContextId={selectedContextId}
+              onSelectContext={handleSelectContext}
+              isInboxSelected={isInboxSelected}
+              onSelectInbox={handleSelectInbox}
+              isHomeSelected={isHomeSelected}
+              onSelectHome={handleSelectHome}
+            />
+          </nav>
         </aside>
 
         {/* Mobile Sidebar (Sheet) */}

@@ -6,6 +6,7 @@ import { formatDuration } from '@/lib/allocation';
 import { getElapsedSeconds } from '@/lib/timer';
 import { cn, getProgressColorClass } from '@/lib/utils';
 import { getTimeProgress } from '@/lib/dates';
+import { getContextColor } from '@/lib/colors';
 import { Progress } from '@/components/ui/progress';
 import type { Session } from '@/lib/types';
 
@@ -109,7 +110,17 @@ export function ContextSwitcher({ session }: ContextSwitcherProps) {
                 aria-disabled={isActive || isPaused}
               >
                 <div className="flex items-center justify-between">
-                  <div className="font-medium">{context?.name ?? 'Unknown'}</div>
+                  <div className="flex items-center gap-2 font-medium">
+                    {/* Color dot */}
+                    <span
+                      className={cn(
+                        'shrink-0 size-2.5 rounded-full',
+                        getContextColor(context?.color ?? 'blue').dot
+                      )}
+                      aria-hidden="true"
+                    />
+                    {context?.name ?? 'Unknown'}
+                  </div>
                   {isActive && (
                     <span className="text-xs bg-primary/20 text-primary px-2 py-0.5 rounded-full">
                       Active

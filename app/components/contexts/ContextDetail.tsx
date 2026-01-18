@@ -1,18 +1,18 @@
 'use client';
 
 import { useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { ImportantDateList } from './ImportantDateList';
-import { ContextForm } from './ContextForm';
+import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { TaskList } from '../tasks/TaskList';
-import { CreateTaskDialog } from '../tasks/CreateTaskDialog';
 import { EditTaskDialog } from '../tasks/EditTaskDialog';
+import { EmptyState } from '../shared/EmptyState';
+import { ContextDetailHeader } from './ContextDetailHeader';
+import { QuickAddTask } from './QuickAddTask';
+import { ContextSettingsSheet } from './ContextSettingsSheet';
+import { ImportantDateList } from './ImportantDateList';
 import { useStore } from '@/lib/store';
-import { Clock, Scale, Calendar, Pencil, Trash2, CheckSquare, Plus } from 'lucide-react';
+import { ChevronDown, ChevronRight, CheckSquare, Plus } from 'lucide-react';
 import type { Context, Task } from '@/lib/types';
 
 interface ContextDetailProps {
@@ -20,204 +20,140 @@ interface ContextDetailProps {
   onDeleted?: () => void;
 }
 
-// Priority labels for display
-const priorityLabels: Record<number, string> = {
-  1: 'Highest',
-  2: 'High',
-  3: 'Medium',
-  4: 'Low',
-  5: 'Lowest',
-};
-
 export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
   const { deleteContext, getTasksByContextId, state } = useStore();
-  const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
 
   const contextTasks = getTasksByContextId(context.id);
   const isDefinitionMode = state.mode === 'definition';
 
-  const handleEditSuccess = () => {
-    setIsEditing(false);
-  };
+  // Separate active and completed tasks
+  const activeTasks = contextTasks.filter((t) => !t.completed);
+  const completedTasks = contextTasks.filter((t) => t.completed);
 
   const handleDelete = () => {
     deleteContext(context.id);
     onDeleted?.();
   };
 
-  if (isEditing) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Edit Context</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ContextForm
-            initialData={context}
-            onSuccess={handleEditSuccess}
-            onCancel={() => setIsEditing(false)}
-          />
-        </CardContent>
-      </Card>
-    );
-  }
+  const importantDates = context.importantDates ?? [];
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <CardTitle className="text-2xl">{context.name}</CardTitle>
-              <div className="flex items-center gap-2 mt-2">
-                <Badge variant="outline">
-                  Priority {context.priority}: {priorityLabels[context.priority]}
-                </Badge>
-              </div>
+      <Card className="flex flex-col h-full overflow-hidden">
+        {/* Compact header with stats */}
+        <ContextDetailHeader
+          context={context}
+          tasks={contextTasks}
+          isDefinitionMode={isDefinitionMode}
+          onSettingsClick={() => setIsSettingsOpen(true)}
+          onDeleteClick={() => setShowDeleteConfirm(true)}
+        />
+
+        {/* Quick add task input - only in definition mode */}
+        {isDefinitionMode && <QuickAddTask contextId={context.id} />}
+
+        {/* Task list - primary content */}
+        <div className="flex-1 overflow-y-auto" role="main" aria-label="Task list">
+          {/* Important dates - shown when present */}
+          {importantDates.length > 0 && (
+            <div className="px-4 pt-4 pb-2">
+              <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                Important Dates
+              </h2>
+              <ImportantDateList dates={importantDates} className="space-y-1.5" />
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setIsEditing(true)}
-                aria-label="Edit context"
-              >
-                <Pencil className="size-4 mr-2" aria-hidden="true" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowDeleteConfirm(true)}
-                className="text-destructive hover:text-destructive"
-                aria-label="Delete context"
-              >
-                <Trash2 className="size-4 mr-2" aria-hidden="true" />
-                Delete
-              </Button>
+          )}
+          {contextTasks.length === 0 ? (
+            <div className={importantDates.length > 0 ? 'px-4 pb-4' : 'p-4'}>
+              <EmptyState
+                icon={<CheckSquare />}
+                title="No tasks yet"
+                description="Add your first task to get started. Break down your work into actionable items."
+                action={
+                  isDefinitionMode ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Focus the quick add input
+                        const input = document.querySelector<HTMLInputElement>(
+                          'input[aria-label="Add new task"]'
+                        );
+                        input?.focus();
+                      }}
+                    >
+                      <Plus className="size-4 mr-1" aria-hidden="true" />
+                      Add Task
+                    </Button>
+                  ) : undefined
+                }
+                size="md"
+              />
             </div>
-          </div>
-        </CardHeader>
+          ) : (
+            <div className={importantDates.length > 0 ? 'px-4 pb-4 space-y-4' : 'p-4 space-y-4'}>
+              {/* Active tasks */}
+              {activeTasks.length > 0 && (
+                <TaskList
+                  tasks={activeTasks}
+                  onEditTask={isDefinitionMode ? setEditingTask : undefined}
+                />
+              )}
 
-        <CardContent className="space-y-6">
-          {/* Time Constraints */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-              <Clock className="size-4" aria-hidden="true" />
-              Time Constraints
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="p-3 rounded-md border bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">
-                  Minimum Duration
-                </p>
-                <p className="text-lg font-semibold">
-                  {context.minDuration ? `${context.minDuration} min` : '—'}
-                </p>
-              </div>
-              <div className="p-3 rounded-md border bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">
-                  Maximum Duration
-                </p>
-                <p className="text-lg font-semibold">
-                  {context.maxDuration ? `${context.maxDuration} min` : '—'}
-                </p>
-              </div>
-            </div>
-          </div>
+              {/* Empty active state when all tasks completed */}
+              {activeTasks.length === 0 && completedTasks.length > 0 && (
+                <div className="text-center py-6 text-muted-foreground">
+                  <CheckSquare className="size-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">All tasks completed!</p>
+                </div>
+              )}
 
-          <Separator />
+              {/* Completed tasks toggle */}
+              {completedTasks.length > 0 && (
+                <div className="pt-2">
+                  <button
+                    onClick={() => setShowCompleted(!showCompleted)}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors w-full"
+                    aria-expanded={showCompleted}
+                    aria-controls="completed-tasks"
+                  >
+                    {showCompleted ? (
+                      <ChevronDown className="size-4" aria-hidden="true" />
+                    ) : (
+                      <ChevronRight className="size-4" aria-hidden="true" />
+                    )}
+                    <span>
+                      {showCompleted ? 'Hide' : 'Show'} completed ({completedTasks.length})
+                    </span>
+                  </button>
 
-          {/* Weight */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-              <Scale className="size-4" aria-hidden="true" />
-              Time Distribution
-            </h3>
-            <div className="p-3 rounded-md border bg-muted/50 inline-block">
-              <p className="text-xs text-muted-foreground mb-1">Weight</p>
-              <p className="text-lg font-semibold">{context.weight}</p>
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-              Higher weights receive proportionally more time when distributing
-              remaining session time.
-            </p>
-          </div>
-
-          <Separator />
-
-          {/* Important Dates */}
-          <div>
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-3 flex items-center gap-2">
-              <Calendar className="size-4" aria-hidden="true" />
-              Important Dates
-            </h3>
-            <ImportantDateList dates={context.importantDates ?? []} />
-          </div>
-
-          <Separator />
-
-          {/* Tasks */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
-                <CheckSquare className="size-4" aria-hidden="true" />
-                Tasks
-              </h3>
-              {isDefinitionMode && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setIsCreateTaskOpen(true)}
-                >
-                  <Plus className="size-4 mr-1" aria-hidden="true" />
-                  Add Task
-                </Button>
+                  {showCompleted && (
+                    <div id="completed-tasks" className="mt-3">
+                      <TaskList
+                        tasks={completedTasks}
+                        onEditTask={isDefinitionMode ? setEditingTask : undefined}
+                      />
+                    </div>
+                  )}
+                </div>
               )}
             </div>
-            <TaskList
-              tasks={contextTasks}
-              emptyMessage="No tasks yet"
-              emptyDescription="Break down your work into actionable tasks to track progress."
-              emptyAction={
-                isDefinitionMode ? (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setIsCreateTaskOpen(true)}
-                  >
-                    <Plus className="size-4 mr-1" aria-hidden="true" />
-                    Add Task
-                  </Button>
-                ) : undefined
-              }
-              onEditTask={isDefinitionMode ? setEditingTask : undefined}
-            />
-          </div>
-
-          <Separator />
-
-          {/* Metadata */}
-          <div className="text-xs text-muted-foreground">
-            <p>
-              Created:{' '}
-              {new Date(context.createdAt).toLocaleDateString(undefined, {
-                dateStyle: 'medium',
-              })}
-            </p>
-            <p>
-              Last updated:{' '}
-              {new Date(context.updatedAt).toLocaleDateString(undefined, {
-                dateStyle: 'medium',
-              })}
-            </p>
-          </div>
-        </CardContent>
+          )}
+        </div>
       </Card>
 
+      {/* Settings sheet */}
+      <ContextSettingsSheet
+        context={context}
+        open={isSettingsOpen}
+        onOpenChange={setIsSettingsOpen}
+      />
+
+      {/* Delete confirmation */}
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
@@ -228,12 +164,7 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
         variant="destructive"
       />
 
-      <CreateTaskDialog
-        open={isCreateTaskOpen}
-        onOpenChange={setIsCreateTaskOpen}
-        contextId={context.id}
-      />
-
+      {/* Edit task dialog */}
       <EditTaskDialog
         task={editingTask}
         open={editingTask !== null}

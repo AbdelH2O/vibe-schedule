@@ -54,7 +54,7 @@ export function TaskListItem({ task, onEdit, onDelete }: TaskListItemProps) {
         )}
       </div>
 
-      <div className="opacity-0 group-hover:opacity-100 transition-opacity flex gap-1">
+      <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex gap-1">
         {onEdit && isDefinitionMode && (
           <Button
             variant="ghost"

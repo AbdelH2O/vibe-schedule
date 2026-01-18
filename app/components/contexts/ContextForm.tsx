@@ -14,9 +14,11 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useStore } from '@/lib/store';
 import { DurationInput } from '../shared/DurationInput';
+import { ColorPicker } from '../shared/ColorPicker';
 import { ImportantDateForm } from './ImportantDateForm';
 import { ImportantDateList } from './ImportantDateList';
 import { generateId } from '@/lib/storage';
+import { getDefaultColorByIndex, type ContextColorName } from '@/lib/colors';
 import type { Context, ImportantDate } from '@/lib/types';
 
 interface ContextFormProps {
@@ -26,12 +28,16 @@ interface ContextFormProps {
 }
 
 export function ContextForm({ initialData, onSuccess, onCancel }: ContextFormProps) {
-  const { addContext, updateContext } = useStore();
+  const { addContext, updateContext, state } = useStore();
   const isEditing = !!initialData;
+
+  // Get default color based on existing context count
+  const defaultColor = getDefaultColorByIndex(state.contexts.length);
 
   // Form state
   const [name, setName] = useState(initialData?.name ?? '');
   const [priority, setPriority] = useState(initialData?.priority ?? 3);
+  const [color, setColor] = useState<ContextColorName>(initialData?.color ?? defaultColor);
   const [minDuration, setMinDuration] = useState<string>(
     initialData?.minDuration?.toString() ?? ''
   );
@@ -80,6 +86,7 @@ export function ContextForm({ initialData, onSuccess, onCancel }: ContextFormPro
     const contextData = {
       name: name.trim(),
       priority,
+      color,
       minDuration: minDuration ? parseInt(minDuration, 10) : undefined,
       maxDuration: maxDuration ? parseInt(maxDuration, 10) : undefined,
       weight: parseFloat(weight),
@@ -127,6 +134,16 @@ export function ContextForm({ initialData, onSuccess, onCancel }: ContextFormPro
           onChange={(e) => setName(e.target.value)}
           placeholder="e.g., Deep Work, Admin, Learning"
           aria-describedby={error ? 'form-error' : undefined}
+        />
+      </div>
+
+      {/* Color */}
+      <div className="space-y-2">
+        <Label id="context-color-label">Color</Label>
+        <ColorPicker
+          value={color}
+          onChange={setColor}
+          id="context-color"
         />
       </div>
 

@@ -1,5 +1,6 @@
-import { AppState, INITIAL_STATE } from './types';
+import { AppState, Context, INITIAL_STATE } from './types';
 import { toast } from 'sonner';
+import { getDefaultColorByIndex } from './colors';
 
 const STORAGE_KEY = 'vibe-schedule-state';
 
@@ -34,11 +35,20 @@ export function loadState(): AppState {
       mode = 'definition';
     }
 
+    // Migrate contexts: add color to contexts without one
+    const contexts: Context[] = Array.isArray(parsed.contexts)
+      ? parsed.contexts.map((ctx: Partial<Context>, index: number) => ({
+          ...ctx,
+          color: ctx.color ?? getDefaultColorByIndex(index),
+        })) as Context[]
+      : [];
+
     return {
-      contexts: Array.isArray(parsed.contexts) ? parsed.contexts : [],
+      contexts,
       tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
       mode,
       session,
+      presets: Array.isArray(parsed.presets) ? parsed.presets : [],
     };
   } catch (error) {
     console.error('Failed to load state from localStorage:', error);

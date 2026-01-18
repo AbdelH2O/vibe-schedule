@@ -15,6 +15,7 @@ import {
   Context,
   Task,
   Session,
+  SessionPreset,
   AppMode,
   ContextAllocation,
   INITIAL_STATE,
@@ -43,6 +44,9 @@ type Action =
   | { type: 'PAUSE_SESSION' }
   | { type: 'RESUME_SESSION' }
   | { type: 'SUSPEND_SESSION'; payload: { elapsedMinutes: number } }
+  // Preset actions
+  | { type: 'ADD_PRESET'; payload: Omit<SessionPreset, 'id' | 'createdAt'> }
+  | { type: 'DELETE_PRESET'; payload: string }
   // State hydration
   | { type: 'HYDRATE'; payload: AppState };
 
@@ -217,9 +221,26 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    // Preset actions
+    case 'ADD_PRESET': {
+      const newPreset: SessionPreset = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: now(),
+      };
+      return { ...state, presets: [...(state.presets || []), newPreset] };
+    }
+    case 'DELETE_PRESET': {
+      return {
+        ...state,
+        presets: (state.presets || []).filter((preset) => preset.id !== action.payload),
+      };
+    }
+
     // Hydration
     case 'HYDRATE': {
-      return action.payload;
+      // Ensure presets array exists for backwards compatibility
+      return { ...action.payload, presets: action.payload.presets || [] };
     }
 
     default:
@@ -251,10 +272,14 @@ interface StoreContextType {
   pauseSession: () => void;
   resumeSession: () => void;
   suspendSession: (elapsedMinutes: number) => void;
+  // Preset actions
+  addPreset: (preset: Omit<SessionPreset, 'id' | 'createdAt'>) => void;
+  deletePreset: (id: string) => void;
   // Selectors
   getContextById: (id: string) => Context | undefined;
   getTasksByContextId: (contextId: string | null) => Task[];
   getInboxTasks: () => Task[];
+  getPresets: () => SessionPreset[];
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -369,6 +394,18 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'SUSPEND_SESSION', payload: { elapsedMinutes } });
   }, []);
 
+  // Preset actions
+  const addPreset = useCallback(
+    (preset: Omit<SessionPreset, 'id' | 'createdAt'>) => {
+      dispatch({ type: 'ADD_PRESET', payload: preset });
+    },
+    []
+  );
+
+  const deletePreset = useCallback((id: string) => {
+    dispatch({ type: 'DELETE_PRESET', payload: id });
+  }, []);
+
   // Selectors
   const getContextById = useCallback(
     (id: string) => state.contexts.find((ctx) => ctx.id === id),
@@ -385,6 +422,8 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     () => state.tasks.filter((task) => task.contextId === null),
     [state.tasks]
   );
+
+  const getPresets = useCallback(() => state.presets || [], [state.presets]);
 
   const value: StoreContextType = {
     state,
@@ -405,9 +444,12 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     pauseSession,
     resumeSession,
     suspendSession,
+    addPreset,
+    deletePreset,
     getContextById,
     getTasksByContextId,
     getInboxTasks,
+    getPresets,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

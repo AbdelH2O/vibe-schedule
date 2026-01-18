@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils';
 import { getDaysRemaining } from '@/lib/dates';
 import { useStore } from '@/lib/store';
 import { CountdownBadge } from '@/app/components/shared/CountdownBadge';
+import { getContextColor } from '@/lib/colors';
 import type { Context } from '@/lib/types';
 
 interface ContextListItemProps {
@@ -61,6 +62,9 @@ export function ContextListItem({
   // Show countdown badge for dates within 14 days or overdue
   const showCountdownBadge = nearestDate && nearestDate.days <= 14;
 
+  // Get context color classes
+  const colorClasses = getContextColor(context.color ?? 'blue');
+
   return (
     <TooltipProvider>
       <Tooltip>
@@ -68,12 +72,18 @@ export function ContextListItem({
           <Button
             variant="ghost"
             className={cn(
-              'w-full justify-start text-left h-auto py-2 px-3',
-              isSelected && 'bg-accent text-accent-foreground'
+              'w-full justify-start text-left h-auto py-2 px-3 rounded-md',
+              isSelected && 'ring-2 ring-inset ring-primary/50'
             )}
             onClick={onClick}
           >
             <div className="flex items-center gap-2 w-full min-w-0">
+              {/* Color indicator dot */}
+              <div
+                className={cn("size-2 rounded-full shrink-0", colorClasses.dot)}
+                aria-hidden="true"
+              />
+
               {/* Priority badge */}
               <Badge
                 variant="secondary"

@@ -5,11 +5,12 @@ import { initializeAudio, playChime, playCompletion } from '@/lib/notifications'
 import { getElapsedSeconds } from '@/lib/timer';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { useEffect, useCallback, useState } from 'react';
+import { useEffect, useCallback, useState, useRef } from 'react';
 import { ActiveContextPanel } from './ActiveContextPanel';
 import { SessionTimer } from './SessionTimer';
 import { ContextSwitcher } from './ContextSwitcher';
 import { WorkingTaskList } from './WorkingTaskList';
+import type { WorkingQuickAddRef } from './WorkingQuickAdd';
 import { SessionControls } from './SessionControls';
 import { SessionSummary, calculateSessionSummary, type SessionSummaryData } from './SessionSummary';
 
@@ -19,6 +20,7 @@ export function WorkingModeView() {
   const [summaryData, setSummaryData] = useState<SessionSummaryData | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [showEndDialog, setShowEndDialog] = useState(false);
+  const quickAddRef = useRef<WorkingQuickAddRef>(null);
 
   // Initialize audio on first render (after user gesture from starting session)
   useEffect(() => {
@@ -52,6 +54,12 @@ export function WorkingModeView() {
       if (e.code === 'Escape' && !e.metaKey && !e.ctrlKey && !e.altKey) {
         e.preventDefault();
         setShowEndDialog(true);
+      }
+
+      // 'n' to focus quick add input
+      if (e.key === 'n' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        quickAddRef.current?.focus();
       }
     };
 
@@ -122,7 +130,7 @@ export function WorkingModeView() {
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header with session timer */}
-      <header className="border-b bg-card px-4 sm:px-6 py-4">
+      <header aria-label="Session controls" className="border-b bg-card px-4 sm:px-6 py-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <Button
@@ -166,7 +174,7 @@ export function WorkingModeView() {
 
             {/* Tasks for active context */}
             {session.activeContextId && (
-              <WorkingTaskList contextId={session.activeContextId} />
+              <WorkingTaskList ref={quickAddRef} contextId={session.activeContextId} />
             )}
           </div>
 
@@ -187,7 +195,7 @@ export function WorkingModeView() {
       )}
 
       {/* Footer with session controls */}
-      <footer className="fixed bottom-0 left-0 right-0 border-t bg-card px-4 sm:px-6 py-3 sm:py-4 z-50">
+      <footer aria-label="Session actions" className="fixed bottom-0 left-0 right-0 border-t bg-card px-4 sm:px-6 py-3 sm:py-4 z-50">
         <div className="max-w-6xl mx-auto flex justify-end gap-2 sm:gap-4">
           <SessionControls
             onEndSession={prepareEndSession}
