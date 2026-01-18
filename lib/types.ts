@@ -66,3 +66,22 @@ export const INITIAL_STATE: AppState = {
 
 // Inbox constant - tasks with contextId: null are in inbox
 export const INBOX_ID = null;
+
+// Deadline urgency levels for visual styling
+export type DeadlineUrgency = 'overdue' | 'urgent' | 'warning' | 'neutral';
+
+// Countdown display information
+export interface CountdownDisplay {
+  text: string;
+  urgency: DeadlineUrgency;
+}
+
+// Time progress status for visualizations
+export type TimeProgressStatus = 'normal' | 'warning' | 'urgent' | 'overtime';
+
+// Time progress information for progress bars
+export interface TimeProgress {
+  percentage: number; // 0-100+, can exceed 100 for overtime
+  status: TimeProgressStatus;
+  remaining: number; // minutes, negative if overtime
+}

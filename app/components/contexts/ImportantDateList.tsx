@@ -1,9 +1,8 @@
 'use client';
 
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { getDaysRemaining, formatCountdown, getCountdownStatus } from '@/lib/dates';
+import { CountdownBadge } from '@/app/components/shared/CountdownBadge';
 import { Calendar, X } from 'lucide-react';
 import type { ImportantDate } from '@/lib/types';
 
@@ -29,9 +28,6 @@ export function ImportantDateList({
   return (
     <ul className={cn('space-y-2', className)} aria-label="Important dates">
       {dates.map((date) => {
-        const days = getDaysRemaining(date.date);
-        const status = getCountdownStatus(days);
-
         return (
           <li
             key={date.id}
@@ -53,16 +49,7 @@ export function ImportantDateList({
             </div>
 
             <div className="flex items-center gap-2 shrink-0">
-              <Badge
-                variant={status === 'overdue' ? 'destructive' : 'secondary'}
-                className={cn(
-                  'text-xs',
-                  status === 'soon' &&
-                    'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                )}
-              >
-                {formatCountdown(days)}
-              </Badge>
+              <CountdownBadge date={date.date} showIcon={true} />
               {onRemove && (
                 <Button
                   variant="ghost"

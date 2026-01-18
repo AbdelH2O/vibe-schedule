@@ -8,9 +8,12 @@ import { Separator } from '@/components/ui/separator';
 import { ImportantDateList } from './ImportantDateList';
 import { ContextForm } from './ContextForm';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
+import { TaskList } from '../tasks/TaskList';
+import { CreateTaskDialog } from '../tasks/CreateTaskDialog';
+import { EditTaskDialog } from '../tasks/EditTaskDialog';
 import { useStore } from '@/lib/store';
-import { Clock, Scale, Calendar, Pencil, Trash2 } from 'lucide-react';
-import type { Context } from '@/lib/types';
+import { Clock, Scale, Calendar, Pencil, Trash2, CheckSquare, Plus } from 'lucide-react';
+import type { Context, Task } from '@/lib/types';
 
 interface ContextDetailProps {
   context: Context;
@@ -27,9 +30,14 @@ const priorityLabels: Record<number, string> = {
 };
 
 export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
-  const { deleteContext } = useStore();
+  const { deleteContext, getTasksByContextId, state } = useStore();
   const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
+
+  const contextTasks = getTasksByContextId(context.id);
+  const isDefinitionMode = state.mode === 'definition';
 
   const handleEditSuccess = () => {
     setIsEditing(false);
@@ -152,6 +160,46 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
 
           <Separator />
 
+          {/* Tasks */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-2">
+                <CheckSquare className="size-4" aria-hidden="true" />
+                Tasks
+              </h3>
+              {isDefinitionMode && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsCreateTaskOpen(true)}
+                >
+                  <Plus className="size-4 mr-1" aria-hidden="true" />
+                  Add Task
+                </Button>
+              )}
+            </div>
+            <TaskList
+              tasks={contextTasks}
+              emptyMessage="No tasks yet"
+              emptyDescription="Break down your work into actionable tasks to track progress."
+              emptyAction={
+                isDefinitionMode ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIsCreateTaskOpen(true)}
+                  >
+                    <Plus className="size-4 mr-1" aria-hidden="true" />
+                    Add Task
+                  </Button>
+                ) : undefined
+              }
+              onEditTask={isDefinitionMode ? setEditingTask : undefined}
+            />
+          </div>
+
+          <Separator />
+
           {/* Metadata */}
           <div className="text-xs text-muted-foreground">
             <p>
@@ -178,6 +226,18 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
         confirmLabel="Delete"
         onConfirm={handleDelete}
         variant="destructive"
+      />
+
+      <CreateTaskDialog
+        open={isCreateTaskOpen}
+        onOpenChange={setIsCreateTaskOpen}
+        contextId={context.id}
+      />
+
+      <EditTaskDialog
+        task={editingTask}
+        open={editingTask !== null}
+        onOpenChange={(open) => !open && setEditingTask(null)}
       />
     </>
   );

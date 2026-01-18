@@ -122,4 +122,64 @@
   body {
     @apply bg-background text-foreground;
   }
+
+  /* Enhanced focus indicators for accessibility */
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-ring;
+  }
+
+  /* Skip link styling */
+  .skip-link {
+    @apply absolute left-0 top-0 p-3 bg-primary text-primary-foreground z-50;
+    @apply -translate-y-full focus:translate-y-0 transition-transform;
+  }
+}
+
+/* Custom animations for Polish & Indicators */
+@keyframes pulse-slow {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 2s ease-in-out infinite;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out;
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out;
+}
+
+/* Transition utilities for mode changes */
+.transition-mode {
+  transition: all 0.3s ease-out;
 }

@@ -14,6 +14,10 @@ interface AppShellProps {
   headerRightContent?: ReactNode;
   selectedContextId?: string | null;
   onSelectContext?: (contextId: string) => void;
+  isInboxSelected?: boolean;
+  onSelectInbox?: () => void;
+  isHomeSelected?: boolean;
+  onSelectHome?: () => void;
 }
 
 export function AppShell({
@@ -21,6 +25,10 @@ export function AppShell({
   headerRightContent,
   selectedContextId,
   onSelectContext,
+  isInboxSelected,
+  onSelectInbox,
+  isHomeSelected,
+  onSelectHome,
 }: AppShellProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -30,19 +38,36 @@ export function AppShell({
     setSidebarOpen(false);
   };
 
+  const handleSelectInbox = () => {
+    onSelectInbox?.();
+    // Close mobile sidebar when inbox is selected
+    setSidebarOpen(false);
+  };
+
+  const handleSelectHome = () => {
+    onSelectHome?.();
+    // Close mobile sidebar when home is selected
+    setSidebarOpen(false);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col h-screen bg-background">
       <Header
         onMenuClick={() => setSidebarOpen(true)}
         rightContent={headerRightContent}
       />
 
-      <div className="flex">
+      <div className="flex flex-1 overflow-hidden">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:block w-64 border-r bg-background">
+        <aside className="hidden lg:flex w-64 border-r bg-background">
           <SidebarContent
+            className="flex-1"
             selectedContextId={selectedContextId}
             onSelectContext={handleSelectContext}
+            isInboxSelected={isInboxSelected}
+            onSelectInbox={handleSelectInbox}
+            isHomeSelected={isHomeSelected}
+            onSelectHome={handleSelectHome}
           />
         </aside>
 
@@ -54,13 +79,19 @@ export function AppShell({
             <SidebarContent
               selectedContextId={selectedContextId}
               onSelectContext={handleSelectContext}
+              isInboxSelected={isInboxSelected}
+              onSelectInbox={handleSelectInbox}
+              isHomeSelected={isHomeSelected}
+              onSelectHome={handleSelectHome}
             />
           </SheetContent>
         </Sheet>
 
-        {/* Main content */}
-        <main className="flex-1 p-6">
-          {children}
+        {/* Main content - with transition for mode changes */}
+        <main id="main-content" className="flex-1 overflow-y-auto p-4 sm:p-6 transition-all duration-300 ease-out">
+          <div className="animate-fade-in">
+            {children}
+          </div>
         </main>
       </div>
     </div>
