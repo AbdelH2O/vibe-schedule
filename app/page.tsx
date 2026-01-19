@@ -14,6 +14,8 @@ import { CreateContextDialog } from './components/contexts/CreateContextDialog';
 import { QuickCaptureBar } from './components/home/QuickCaptureBar';
 import { ContextCardGrid } from './components/home/ContextCardGrid';
 import { SessionSuggestions } from './components/home/SessionSuggestions';
+import { ReminderModal } from './components/reminders/ReminderModal';
+import { useReminderScheduler } from '@/lib/useReminderScheduler';
 import { useStore } from '@/lib/store';
 
 type Selection =
@@ -23,6 +25,9 @@ type Selection =
 
 function HomeContent() {
   const { state, getContextById, resumeSession, endSession } = useStore();
+
+  // Initialize the reminder scheduler
+  useReminderScheduler();
   const [selection, setSelection] = useState<Selection>(null);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [createContextOpen, setCreateContextOpen] = useState(false);
@@ -176,6 +181,8 @@ export default function Home() {
   return (
     <ClientProvider>
       <HomeContent />
+      {/* Global reminder modal - renders on top of everything */}
+      <ReminderModal />
     </ClientProvider>
   );
 }

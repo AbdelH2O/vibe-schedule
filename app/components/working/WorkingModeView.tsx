@@ -16,7 +16,7 @@ import { SessionControls } from './SessionControls';
 import { SessionSummary, calculateSessionSummary, type SessionSummaryData } from './SessionSummary';
 
 export function WorkingModeView() {
-  const { state, getContextById, endSession, pauseSession, resumeSession, suspendSession } = useStore();
+  const { state, getContextById, endSession, pauseSession, resumeSession, suspendSession, notificationState } = useStore();
   const session = state.session;
   const [summaryData, setSummaryData] = useState<SessionSummaryData | null>(null);
   const [showSummary, setShowSummary] = useState(false);
@@ -148,7 +148,8 @@ export function WorkingModeView() {
     (a) => a.contextId === session.activeContextId
   );
 
-  const isPaused = session.status === 'paused';
+  // Pause timer when session is manually paused OR when reminder notification is active
+  const isPaused = session.status === 'paused' || notificationState.isPausedByReminder;
 
   return (
     <div
@@ -195,6 +196,7 @@ export function WorkingModeView() {
               allocation={activeAllocation}
               contextStartedAt={session.contextStartedAt}
               isPaused={isPaused}
+              isPausedByReminder={notificationState.isPausedByReminder}
               onTimeExhausted={handleContextTimeExhausted}
             />
           ) : (
@@ -214,8 +216,8 @@ export function WorkingModeView() {
         </div>
       </div>
 
-      {/* Paused overlay indicator */}
-      {isPaused && (
+      {/* Paused overlay indicator - only show for manual pause, not reminder pause */}
+      {session.status === 'paused' && !notificationState.isPausedByReminder && (
         <div className="fixed inset-0 bg-background/50 flex items-center justify-center pointer-events-none z-40">
           <div className="bg-card border rounded-lg px-6 py-4 shadow-lg">
             <p className="text-lg font-semibold text-muted-foreground">Session Paused</p>

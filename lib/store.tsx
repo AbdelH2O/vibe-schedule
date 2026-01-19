@@ -19,6 +19,10 @@ import {
   AppMode,
   ContextAllocation,
   INITIAL_STATE,
+  Reminder,
+  UserLocation,
+  TriggeredNotification,
+  NotificationRuntimeState,
 } from './types';
 import { loadState, saveState, generateId, now } from './storage';
 import { getDemoData } from './demoData';
@@ -51,7 +55,16 @@ type Action =
   // State hydration
   | { type: 'HYDRATE'; payload: AppState }
   // Demo data
-  | { type: 'LOAD_DEMO_DATA'; payload: { contexts: Context[]; tasks: Task[] } };
+  | { type: 'LOAD_DEMO_DATA'; payload: { contexts: Context[]; tasks: Task[] } }
+  // Reminder actions
+  | { type: 'ADD_REMINDER'; payload: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'> }
+  | { type: 'UPDATE_REMINDER'; payload: { id: string; updates: Partial<Reminder> } }
+  | { type: 'DELETE_REMINDER'; payload: string }
+  | { type: 'TOGGLE_REMINDER_ENABLED'; payload: string }
+  | { type: 'UPDATE_REMINDER_LAST_TRIGGERED'; payload: { id: string; triggeredAt: string } }
+  // User location actions
+  | { type: 'SET_USER_LOCATION'; payload: UserLocation | null }
+  | { type: 'SET_NOTIFICATION_PERMISSION'; payload: 'default' | 'granted' | 'denied' };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -255,6 +268,61 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    // Reminder actions
+    case 'ADD_REMINDER': {
+      const newReminder: Reminder = {
+        ...action.payload,
+        id: generateId(),
+        createdAt: now(),
+        updatedAt: now(),
+      };
+      return { ...state, reminders: [...(state.reminders || []), newReminder] };
+    }
+    case 'UPDATE_REMINDER': {
+      return {
+        ...state,
+        reminders: (state.reminders || []).map((reminder) =>
+          reminder.id === action.payload.id
+            ? { ...reminder, ...action.payload.updates, updatedAt: now() }
+            : reminder
+        ),
+      };
+    }
+    case 'DELETE_REMINDER': {
+      return {
+        ...state,
+        reminders: (state.reminders || []).filter((reminder) => reminder.id !== action.payload),
+      };
+    }
+    case 'TOGGLE_REMINDER_ENABLED': {
+      return {
+        ...state,
+        reminders: (state.reminders || []).map((reminder) =>
+          reminder.id === action.payload
+            ? { ...reminder, enabled: !reminder.enabled, updatedAt: now() }
+            : reminder
+        ),
+      };
+    }
+    case 'UPDATE_REMINDER_LAST_TRIGGERED': {
+      return {
+        ...state,
+        reminders: (state.reminders || []).map((reminder) =>
+          reminder.id === action.payload.id
+            ? { ...reminder, lastTriggeredAt: action.payload.triggeredAt, updatedAt: now() }
+            : reminder
+        ),
+      };
+    }
+
+    // User location actions
+    case 'SET_USER_LOCATION': {
+      return { ...state, userLocation: action.payload };
+    }
+    case 'SET_NOTIFICATION_PERMISSION': {
+      return { ...state, notificationPermission: action.payload };
+    }
+
     default:
       return state;
   }
@@ -294,14 +362,44 @@ interface StoreContextType {
   getPresets: () => SessionPreset[];
   // Demo data
   loadDemoData: () => void;
+  // Reminder actions
+  addReminder: (reminder: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>) => void;
+  updateReminder: (id: string, updates: Partial<Reminder>) => void;
+  deleteReminder: (id: string) => void;
+  toggleReminderEnabled: (id: string) => void;
+  updateReminderLastTriggered: (id: string, triggeredAt: string) => void;
+  // User location actions
+  setUserLocation: (location: UserLocation | null) => void;
+  setNotificationPermission: (permission: 'default' | 'granted' | 'denied') => void;
+  // Reminder selectors
+  getReminders: () => Reminder[];
+  getReminderById: (id: string) => Reminder | undefined;
+  getEnabledReminders: () => Reminder[];
+  // Runtime notification state
+  notificationState: NotificationRuntimeState;
+  triggerNotification: (notification: Omit<TriggeredNotification, 'id' | 'triggeredAt' | 'status'>) => void;
+  acknowledgeNotification: () => void;
+  snoozeNotification: (minutes: number) => void;
+  dismissNotification: () => void;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
+
+// Initial runtime notification state (not persisted)
+const INITIAL_NOTIFICATION_STATE: NotificationRuntimeState = {
+  activeNotification: null,
+  notificationQueue: [],
+  isPausedByReminder: false,
+};
 
 export function StoreProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, INITIAL_STATE);
   const [isHydrated, setIsHydrated] = useState(false);
   const isInitialMount = useRef(true);
+  // Runtime notification state (not persisted to localStorage)
+  const [notificationState, setNotificationState] = useState<NotificationRuntimeState>(
+    INITIAL_NOTIFICATION_STATE
+  );
 
   // Hydrate from localStorage on mount
   useEffect(() => {
@@ -445,6 +543,145 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     dispatch({ type: 'LOAD_DEMO_DATA', payload: { contexts, tasks } });
   }, []);
 
+  // Reminder actions
+  const addReminder = useCallback(
+    (reminder: Omit<Reminder, 'id' | 'createdAt' | 'updatedAt'>) => {
+      dispatch({ type: 'ADD_REMINDER', payload: reminder });
+    },
+    []
+  );
+
+  const updateReminder = useCallback((id: string, updates: Partial<Reminder>) => {
+    dispatch({ type: 'UPDATE_REMINDER', payload: { id, updates } });
+  }, []);
+
+  const deleteReminder = useCallback((id: string) => {
+    dispatch({ type: 'DELETE_REMINDER', payload: id });
+  }, []);
+
+  const toggleReminderEnabled = useCallback((id: string) => {
+    dispatch({ type: 'TOGGLE_REMINDER_ENABLED', payload: id });
+  }, []);
+
+  const updateReminderLastTriggered = useCallback((id: string, triggeredAt: string) => {
+    dispatch({ type: 'UPDATE_REMINDER_LAST_TRIGGERED', payload: { id, triggeredAt } });
+  }, []);
+
+  // User location actions
+  const setUserLocation = useCallback((location: UserLocation | null) => {
+    dispatch({ type: 'SET_USER_LOCATION', payload: location });
+  }, []);
+
+  const setNotificationPermission = useCallback(
+    (permission: 'default' | 'granted' | 'denied') => {
+      dispatch({ type: 'SET_NOTIFICATION_PERMISSION', payload: permission });
+    },
+    []
+  );
+
+  // Reminder selectors
+  const getReminders = useCallback(
+    () => state.reminders || [],
+    [state.reminders]
+  );
+
+  const getReminderById = useCallback(
+    (id: string) => (state.reminders || []).find((r) => r.id === id),
+    [state.reminders]
+  );
+
+  const getEnabledReminders = useCallback(
+    () => (state.reminders || []).filter((r) => r.enabled),
+    [state.reminders]
+  );
+
+  // Runtime notification actions (not persisted)
+  const triggerNotification = useCallback(
+    (notification: Omit<TriggeredNotification, 'id' | 'triggeredAt' | 'status'>) => {
+      const fullNotification: TriggeredNotification = {
+        ...notification,
+        id: generateId(),
+        triggeredAt: now(),
+        status: 'pending',
+      };
+
+      setNotificationState((prev) => {
+        // If no active notification, set this one as active
+        if (!prev.activeNotification) {
+          return {
+            activeNotification: fullNotification,
+            notificationQueue: prev.notificationQueue,
+            isPausedByReminder: true,
+          };
+        }
+        // Otherwise, add to queue
+        return {
+          ...prev,
+          notificationQueue: [...prev.notificationQueue, fullNotification],
+        };
+      });
+    },
+    []
+  );
+
+  const processNextNotification = useCallback(() => {
+    setNotificationState((prev) => {
+      if (prev.notificationQueue.length > 0) {
+        const [next, ...rest] = prev.notificationQueue;
+        return {
+          activeNotification: next,
+          notificationQueue: rest,
+          isPausedByReminder: true,
+        };
+      }
+      return {
+        activeNotification: null,
+        notificationQueue: [],
+        isPausedByReminder: false,
+      };
+    });
+  }, []);
+
+  const acknowledgeNotification = useCallback(() => {
+    processNextNotification();
+  }, [processNextNotification]);
+
+  const snoozeNotification = useCallback((minutes: number) => {
+    setNotificationState((prev) => {
+      if (!prev.activeNotification) return prev;
+
+      const snoozedUntil = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+      const snoozedNotification: TriggeredNotification = {
+        ...prev.activeNotification,
+        status: 'snoozed',
+        snoozedUntil,
+      };
+
+      // Add snoozed notification to end of queue
+      const newQueue = [...prev.notificationQueue, snoozedNotification];
+
+      // Process next notification or clear active
+      if (prev.notificationQueue.length > 0) {
+        const [next, ...rest] = prev.notificationQueue;
+        return {
+          activeNotification: next,
+          notificationQueue: [...rest, snoozedNotification],
+          isPausedByReminder: true, // Stay paused during snooze
+        };
+      }
+
+      return {
+        activeNotification: null,
+        notificationQueue: [snoozedNotification],
+        isPausedByReminder: true, // Stay paused during snooze
+      };
+    });
+  }, []);
+
+  const dismissNotification = useCallback(() => {
+    processNextNotification();
+  }, [processNextNotification]);
+
   const value: StoreContextType = {
     state,
     isHydrated,
@@ -471,6 +708,25 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     getInboxTasks,
     getPresets,
     loadDemoData,
+    // Reminder actions
+    addReminder,
+    updateReminder,
+    deleteReminder,
+    toggleReminderEnabled,
+    updateReminderLastTriggered,
+    // User location actions
+    setUserLocation,
+    setNotificationPermission,
+    // Reminder selectors
+    getReminders,
+    getReminderById,
+    getEnabledReminders,
+    // Runtime notification state
+    notificationState,
+    triggerNotification,
+    acknowledgeNotification,
+    snoozeNotification,
+    dismissNotification,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

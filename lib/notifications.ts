@@ -91,3 +91,120 @@ export function initializeAudio(): void {
     ctx.resume();
   }
 }
+
+// ============================================
+// Browser Notification API Support
+// ============================================
+
+/**
+ * Check if browser notifications are supported
+ */
+export function isBrowserNotificationSupported(): boolean {
+  return typeof window !== 'undefined' && 'Notification' in window;
+}
+
+/**
+ * Get current notification permission status
+ */
+export function getNotificationPermission(): NotificationPermission | 'unsupported' {
+  if (!isBrowserNotificationSupported()) {
+    return 'unsupported';
+  }
+  return Notification.permission;
+}
+
+/**
+ * Request notification permission from the user
+ * Should only be called after a user gesture (e.g., button click)
+ */
+export async function requestNotificationPermission(): Promise<NotificationPermission | 'unsupported'> {
+  if (!isBrowserNotificationSupported()) {
+    return 'unsupported';
+  }
+
+  if (Notification.permission === 'granted') {
+    return 'granted';
+  }
+
+  if (Notification.permission === 'denied') {
+    return 'denied';
+  }
+
+  try {
+    const result = await Notification.requestPermission();
+    return result;
+  } catch {
+    console.warn('Failed to request notification permission');
+    return 'default';
+  }
+}
+
+/**
+ * Show a browser notification
+ * Returns true if the notification was shown, false otherwise
+ */
+export function showBrowserNotification(
+  title: string,
+  message: string,
+  id: string,
+  onClick?: () => void
+): boolean {
+  if (!isBrowserNotificationSupported() || Notification.permission !== 'granted') {
+    return false;
+  }
+
+  try {
+    const notification = new Notification(title, {
+      body: message,
+      tag: id, // Prevents duplicate notifications with same tag
+      requireInteraction: true, // Stays visible until user interacts
+      icon: '/favicon.ico',
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+      onClick?.();
+    };
+
+    return true;
+  } catch {
+    console.warn('Failed to show browser notification');
+    return false;
+  }
+}
+
+/**
+ * Play a reminder notification sound
+ * Similar to playChime but with a different tone for reminders
+ */
+export function playReminderSound(): void {
+  const ctx = getAudioContext();
+  if (!ctx) return;
+
+  try {
+    // Play two notes for a gentle reminder sound
+    const frequencies = [659.25, 784.0]; // E5, G5
+    const times = [0, 0.12];
+
+    frequencies.forEach((freq, i) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+
+      oscillator.frequency.value = freq;
+      oscillator.type = 'sine';
+
+      const startTime = ctx.currentTime + times[i];
+      gainNode.gain.setValueAtTime(0.25, startTime);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + 0.4);
+
+      oscillator.start(startTime);
+      oscillator.stop(startTime + 0.4);
+    });
+  } catch {
+    // Silently fail if audio playback fails
+  }
+}

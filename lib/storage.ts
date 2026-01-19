@@ -49,6 +49,10 @@ export function loadState(): AppState {
       mode,
       session,
       presets: Array.isArray(parsed.presets) ? parsed.presets : [],
+      // Reminder-related fields (migration safety)
+      reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],
+      userLocation: parsed.userLocation ?? null,
+      notificationPermission: parsed.notificationPermission ?? 'default',
     };
   } catch (error) {
     console.error('Failed to load state from localStorage:', error);

@@ -5,6 +5,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 import type { ContextColorName } from '@/lib/colors';
+import { CountdownBadge } from '@/app/components/shared/CountdownBadge';
+import { getDeadlineUrgency } from '@/lib/dates';
 
 interface WorkingTaskItemProps {
   task: Task;
@@ -178,6 +180,21 @@ export function WorkingTaskItem({
             >
               {task.title}
             </label>
+            {/* Deadline badge - always visible for urgent/warning/overdue, hover for neutral */}
+            {task.deadline && !task.completed && (() => {
+              const urgency = getDeadlineUrgency(task.deadline);
+              const shouldShow = urgency !== 'neutral' || isHovering;
+              return shouldShow ? (
+                <CountdownBadge
+                  date={task.deadline}
+                  showIcon={true}
+                  className={cn(
+                    'shrink-0 transition-opacity',
+                    urgency === 'neutral' && 'opacity-70'
+                  )}
+                />
+              ) : null;
+            })()}
           </div>
 
           {/* Add details link - shows on hover when no description */}

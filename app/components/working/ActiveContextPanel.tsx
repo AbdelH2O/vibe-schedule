@@ -1,6 +1,7 @@
 'use client';
 
 import { ContextTimer } from './ContextTimer';
+import { ContextDatesSection } from './ContextDatesSection';
 import { formatDuration } from '@/lib/allocation';
 import type { Context, ContextAllocation } from '@/lib/types';
 
@@ -9,6 +10,7 @@ interface ActiveContextPanelProps {
   allocation: ContextAllocation;
   contextStartedAt: string | null;
   isPaused: boolean;
+  isPausedByReminder?: boolean;
   onTimeExhausted?: () => void;
 }
 
@@ -17,6 +19,7 @@ export function ActiveContextPanel({
   allocation,
   contextStartedAt,
   isPaused,
+  isPausedByReminder,
   onTimeExhausted,
 }: ActiveContextPanelProps) {
   return (
@@ -33,6 +36,11 @@ export function ActiveContextPanel({
         </div>
       </div>
 
+      {/* Important dates section */}
+      {context.importantDates && context.importantDates.length > 0 && (
+        <ContextDatesSection importantDates={context.importantDates} />
+      )}
+
       <div className="flex items-center justify-center py-8">
         <ContextTimer
           allocatedMinutes={allocation.allocatedMinutes}
@@ -45,7 +53,7 @@ export function ActiveContextPanel({
 
       {isPaused && (
         <div className="text-center text-muted-foreground text-sm">
-          Timer paused
+          {isPausedByReminder ? 'Timer paused - Respond to reminder' : 'Timer paused'}
         </div>
       )}
     </div>

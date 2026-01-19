@@ -5,6 +5,7 @@ import { useStore } from '@/lib/store';
 import type { ContextColorName } from '@/lib/colors';
 import { WorkingTaskItem } from './WorkingTaskItem';
 import { WorkingQuickAdd, type WorkingQuickAddRef } from './WorkingQuickAdd';
+import { UrgentTasksBanner } from './UrgentTasksBanner';
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -34,6 +35,9 @@ export const WorkingTaskList = forwardRef<WorkingQuickAddRef, WorkingTaskListPro
             </span>
           )}
         </div>
+
+        {/* Urgent tasks banner */}
+        <UrgentTasksBanner tasks={tasks} />
 
         {/* Quick add elevated to top */}
         <WorkingQuickAdd ref={ref} contextId={contextId} />
