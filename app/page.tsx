@@ -15,8 +15,11 @@ import { QuickCaptureBar } from './components/home/QuickCaptureBar';
 import { ContextCardGrid } from './components/home/ContextCardGrid';
 import { SessionSuggestions } from './components/home/SessionSuggestions';
 import { ReminderModal } from './components/reminders/ReminderModal';
+import { DataManagement } from './components/settings/DataManagement';
 import { useReminderScheduler } from '@/lib/useReminderScheduler';
 import { useStore } from '@/lib/store';
+import { Button } from '@/components/ui/button';
+import { Settings } from 'lucide-react';
 
 type Selection =
   | { type: 'inbox' }
@@ -31,6 +34,7 @@ function HomeContent() {
   const [selection, setSelection] = useState<Selection>(null);
   const [sessionDialogOpen, setSessionDialogOpen] = useState(false);
   const [createContextOpen, setCreateContextOpen] = useState(false);
+  const [dataManagementOpen, setDataManagementOpen] = useState(false);
 
   // Compute mode announcement text - displayed via aria-live region
   const modeAnnouncement = state.mode === 'definition' ? 'Definition Mode' : 'Working Mode';
@@ -110,6 +114,14 @@ function HomeContent() {
         headerRightContent={
           <div className="flex items-center gap-2">
             <DemoTemplateButton />
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setDataManagementOpen(true)}
+              aria-label="Data Management"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
             <ModeIndicator />
           </div>
         }
@@ -156,6 +168,10 @@ function HomeContent() {
         <CreateContextDialog
           open={createContextOpen}
           onOpenChange={setCreateContextOpen}
+        />
+        <DataManagement
+          open={dataManagementOpen}
+          onOpenChange={setDataManagementOpen}
         />
       </AppShell>
     </div>

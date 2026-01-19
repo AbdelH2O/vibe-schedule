@@ -46,6 +46,8 @@ pnpm lint         # Run ESLint
 - Sonner toast notifications for error feedback (006-polish-indicators)
 - TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Lucide React (007-reminders-notifications)
 - TypeScript 5 (strict mode) + shadcn/ui, Radix UI primitives, Lucide React, Tailwind CSS 4 (008-workmode-sidebar)
+- TypeScript 5 (strict mode) + Next.js 16, React 19, shadcn/ui, Radix UI, Lucide React, Sonner (toasts) (009-data-export-import)
+- Browser localStorage (via existing `lib/storage.ts`) (009-data-export-import)
 
 ## Patterns & Conventions (006-polish-indicators)
 
@@ -79,6 +81,6 @@ pnpm lint         # Run ESLint
 - CSS keyframes in app/globals.css
 
 ## Recent Changes
+- 009-data-export-import: Added TypeScript 5 (strict mode) + Next.js 16, React 19, shadcn/ui, Radix UI, Lucide React, Sonner (toasts)
 - 008-workmode-sidebar: Added TypeScript 5 (strict mode) + shadcn/ui, Radix UI primitives, Lucide React, Tailwind CSS 4
 - 007-reminders-notifications: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Lucide React
-- 001-foundation-data-model: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3
