@@ -149,7 +149,11 @@ export function showBrowserNotification(
   id: string,
   onClick?: () => void
 ): boolean {
-  if (!isBrowserNotificationSupported() || Notification.permission !== 'granted') {
+  if (!isBrowserNotificationSupported()) {
+    return false;
+  }
+
+  if (Notification.permission !== 'granted') {
     return false;
   }
 
@@ -169,7 +173,6 @@ export function showBrowserNotification(
 
     return true;
   } catch {
-    console.warn('Failed to show browser notification');
     return false;
   }
 }

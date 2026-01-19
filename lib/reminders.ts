@@ -36,9 +36,14 @@ function getNextIntervalTrigger(reminder: Reminder, now: Date): Date {
   const intervalMs = (reminder.config as { intervalMinutes: number }).intervalMinutes * 60 * 1000;
   let nextTrigger = new Date(lastTriggered.getTime() + intervalMs);
 
+  // Strip milliseconds to align with scheduler second boundaries
+  // This prevents timing race conditions where the scheduler checks at
+  // second boundaries but trigger times have millisecond offsets
+  nextTrigger.setMilliseconds(0);
+
   // If next trigger is in the past, calculate the next future trigger
   // This handles cases where the app was closed for a while
-  while (nextTrigger <= now) {
+  while (nextTrigger < now) {
     nextTrigger = new Date(nextTrigger.getTime() + intervalMs);
   }
 
@@ -56,7 +61,7 @@ export function getNextFixedTimeTrigger(config: FixedTimeReminderConfig, now: Da
   candidate.setHours(hours, minutes, 0, 0);
 
   // If today's time has passed, start from tomorrow
-  if (candidate <= now) {
+  if (candidate < now) {
     candidate.setDate(candidate.getDate() + 1);
   }
 
@@ -73,6 +78,58 @@ export function getNextFixedTimeTrigger(config: FixedTimeReminderConfig, now: Da
   }
 
   return candidate;
+}
+
+/**
+ * Check if a reminder is overdue (missed its trigger window)
+ * Returns true if the reminder should have triggered but hasn't
+ *
+ * This handles cases where:
+ * - Browser throttled background tabs
+ * - System sleep/wake
+ * - High CPU usage delayed setInterval
+ * - Page visibility changes
+ */
+export function isReminderOverdue(reminder: Reminder, now: Date = new Date()): boolean {
+  if (!reminder.enabled) return false;
+  if (reminder.config.type === 'prayer') return false; // Prayer handled separately
+
+  const lastTriggered = reminder.lastTriggeredAt
+    ? new Date(reminder.lastTriggeredAt)
+    : new Date(reminder.createdAt);
+
+  if (reminder.config.type === 'interval') {
+    const intervalMs = reminder.config.intervalMinutes * 60 * 1000;
+    const expectedTriggerTime = new Date(lastTriggered.getTime() + intervalMs);
+    expectedTriggerTime.setMilliseconds(0);
+
+    // Overdue if we're more than 1 second past expected trigger
+    // (1 second is the normal trigger window)
+    return now.getTime() > expectedTriggerTime.getTime() + 1000;
+  }
+
+  if (reminder.config.type === 'fixed-time') {
+    const config = reminder.config;
+    const [hours, minutes] = config.time.split(':').map(Number);
+    const todayTrigger = new Date(now);
+    todayTrigger.setHours(hours, minutes, 0, 0);
+
+    // Check if today is a valid day (if days are specified)
+    if (config.days && config.days.length > 0 && config.days.length < 7) {
+      const dayOfWeek = now.getDay() as DayOfWeek;
+      if (!config.days.includes(dayOfWeek)) {
+        return false; // Today is not a scheduled day
+      }
+    }
+
+    // Only overdue if: today's trigger time has passed AND we haven't triggered today
+    const triggeredToday = lastTriggered.toDateString() === now.toDateString() &&
+                          lastTriggered >= todayTrigger;
+
+    return now > todayTrigger && !triggeredToday;
+  }
+
+  return false;
 }
 
 /**

@@ -16,7 +16,7 @@ interface WorkingTaskListProps {
 
 export const WorkingTaskList = forwardRef<WorkingQuickAddRef, WorkingTaskListProps>(
   function WorkingTaskList({ contextId, contextColor }, ref) {
-    const { getTasksByContextId, toggleTaskCompleted, updateTask } = useStore();
+    const { getTasksByContextId, toggleTaskCompleted, updateTask, deleteTask } = useStore();
 
     const tasks = getTasksByContextId(contextId);
     const completedCount = tasks.filter((t) => t.completed).length;
@@ -63,6 +63,7 @@ export const WorkingTaskList = forwardRef<WorkingQuickAddRef, WorkingTaskListPro
                   onUpdateDescription={(description) =>
                     updateTask(task.id, { description })
                   }
+                  onDelete={deleteTask}
                 />
               </li>
             ))}

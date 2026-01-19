@@ -79,6 +79,7 @@ export function calculateAllocations(input: AllocationInput): AllocationResult {
       contextId: ctx.id,
       allocatedMinutes: Math.round((ctx.minDuration ?? 0) * ratio),
       usedMinutes: 0,
+      adjustedMinutes: 0,
     }));
 
     // Adjust for rounding to ensure total matches
@@ -190,6 +191,7 @@ export function calculateAllocations(input: AllocationInput): AllocationResult {
     contextId: a.contextId,
     allocatedMinutes: Math.round(a.allocated),
     usedMinutes: 0,
+    adjustedMinutes: 0,
   }));
 
   const totalAllocated = allocations.reduce((sum, a) => sum + a.allocatedMinutes, 0);

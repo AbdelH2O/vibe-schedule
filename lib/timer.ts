@@ -27,11 +27,12 @@ export function formatTime(totalSeconds: number): string {
 export function calculateRemainingSeconds(
   allocatedMinutes: number,
   usedMinutes: number,
-  elapsedSeconds: number
+  elapsedSeconds: number,
+  adjustedMinutes: number = 0
 ): number {
-  const allocatedSeconds = allocatedMinutes * 60;
+  const effectiveAllocatedSeconds = (allocatedMinutes + adjustedMinutes) * 60;
   const usedSeconds = usedMinutes * 60;
-  return allocatedSeconds - usedSeconds - elapsedSeconds;
+  return effectiveAllocatedSeconds - usedSeconds - elapsedSeconds;
 }
 
 /**

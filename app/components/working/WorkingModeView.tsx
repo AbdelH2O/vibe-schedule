@@ -5,7 +5,7 @@ import { initializeAudio, playChime, playCompletion } from '@/lib/notifications'
 import { getElapsedSeconds } from '@/lib/timer';
 import { getContextColor } from '@/lib/colors';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Calendar, Bell } from 'lucide-react';
 import { useEffect, useCallback, useState, useRef, useMemo } from 'react';
 import { ActiveContextPanel } from './ActiveContextPanel';
 import { SessionTimer } from './SessionTimer';
@@ -14,6 +14,7 @@ import { WorkingTaskList } from './WorkingTaskList';
 import type { WorkingQuickAddRef } from './WorkingQuickAdd';
 import { SessionControls } from './SessionControls';
 import { SessionSummary, calculateSessionSummary, type SessionSummaryData } from './SessionSummary';
+import { WorkingSidebar } from './WorkingSidebar';
 
 export function WorkingModeView() {
   const { state, getContextById, endSession, pauseSession, resumeSession, suspendSession, notificationState } = useStore();
@@ -21,6 +22,7 @@ export function WorkingModeView() {
   const [summaryData, setSummaryData] = useState<SessionSummaryData | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [showEndDialog, setShowEndDialog] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const quickAddRef = useRef<WorkingQuickAddRef>(null);
   const contextDropdownRef = useRef<ContextDropdownRef>(null);
 
@@ -148,6 +150,13 @@ export function WorkingModeView() {
     (a) => a.contextId === session.activeContextId
   );
 
+  // Get all contexts in the session for the sidebar
+  const sessionContexts = useMemo(() => {
+    return session.allocations
+      .map((a) => state.contexts.find((c) => c.id === a.contextId))
+      .filter((c): c is NonNullable<typeof c> => c !== undefined);
+  }, [session.allocations, state.contexts]);
+
   // Pause timer when session is manually paused OR when reminder notification is active
   const isPaused = session.status === 'paused' || notificationState.isPausedByReminder;
 
@@ -172,6 +181,17 @@ export function WorkingModeView() {
               <ArrowLeft className="size-4" />
               <span className="hidden sm:inline">Back to Planning</span>
               <span className="sm:hidden">Back</span>
+            </Button>
+
+            {/* Mobile sidebar toggle - only visible on mobile */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setMobileSidebarOpen(true)}
+              className="lg:hidden"
+              aria-label="Open dates and reminders"
+            >
+              <Calendar className="size-4" />
             </Button>
           </div>
 
@@ -244,6 +264,14 @@ export function WorkingModeView() {
         open={showSummary}
         onDismiss={handleDismissSummary}
         summaryData={summaryData}
+      />
+
+      {/* Working sidebar - dates and reminders */}
+      <WorkingSidebar
+        session={session}
+        sessionContexts={sessionContexts}
+        mobileOpen={mobileSidebarOpen}
+        onMobileOpenChange={setMobileSidebarOpen}
       />
     </div>
   );

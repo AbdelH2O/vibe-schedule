@@ -53,6 +53,8 @@ export function loadState(): AppState {
       reminders: Array.isArray(parsed.reminders) ? parsed.reminders : [],
       userLocation: parsed.userLocation ?? null,
       notificationPermission: parsed.notificationPermission ?? 'default',
+      // Sidebar preferences (migration safety)
+      sidebarPreferences: parsed.sidebarPreferences ?? { deadlineScopeFilter: 'all' },
     };
   } catch (error) {
     console.error('Failed to load state from localStorage:', error);

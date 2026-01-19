@@ -35,7 +35,9 @@ export function ReminderModal() {
     }
   }, [activeNotification]);
 
-  if (!activeNotification) return null;
+  if (!activeNotification) {
+    return null;
+  }
 
   return (
     <Dialog open={true} onOpenChange={() => {}}>

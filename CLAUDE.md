@@ -45,6 +45,7 @@ pnpm lint         # Run ESLint
 - TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Tailwind CSS 4, Lucide React, Radix UI primitives (006-polish-indicators)
 - Sonner toast notifications for error feedback (006-polish-indicators)
 - TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Lucide React (007-reminders-notifications)
+- TypeScript 5 (strict mode) + shadcn/ui, Radix UI primitives, Lucide React, Tailwind CSS 4 (008-workmode-sidebar)
 
 ## Patterns & Conventions (006-polish-indicators)
 
@@ -78,6 +79,6 @@ pnpm lint         # Run ESLint
 - CSS keyframes in app/globals.css
 
 ## Recent Changes
+- 008-workmode-sidebar: Added TypeScript 5 (strict mode) + shadcn/ui, Radix UI primitives, Lucide React, Tailwind CSS 4
 - 007-reminders-notifications: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Lucide React
 - 001-foundation-data-model: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3
-- 006-polish-indicators: Added deadline countdown indicators, time progress visualizations, mode transition feedback, empty state guidance, responsive design improvements, accessibility enhancements, and error handling

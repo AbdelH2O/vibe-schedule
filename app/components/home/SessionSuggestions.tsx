@@ -66,6 +66,7 @@ export function SessionSuggestions({ onOpenCustomDialog }: SessionSuggestionsPro
       contextId: topContext.id,
       allocatedMinutes: 25,
       usedMinutes: 0,
+      adjustedMinutes: 0,
     }]);
   }, [topContext, startSession]);
 
@@ -88,6 +89,7 @@ export function SessionSuggestions({ onOpenCustomDialog }: SessionSuggestionsPro
     startSession(totalMinutes, validAllocations.map(a => ({
       ...a,
       usedMinutes: 0,
+      adjustedMinutes: 0,  // Reset adjustments when loading preset
     })));
   }, [contexts, startSession]);
 

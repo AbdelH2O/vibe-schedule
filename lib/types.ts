@@ -48,8 +48,9 @@ export interface Session {
 
 export interface ContextAllocation {
   contextId: string;
-  allocatedMinutes: number;
+  allocatedMinutes: number;    // Original allocation (immutable after session start)
   usedMinutes: number;
+  adjustedMinutes: number;     // Runtime adjustment (+/-), default 0
 }
 
 // Complete app state stored in localStorage
@@ -63,6 +64,8 @@ export interface AppState {
   reminders: Reminder[];
   userLocation: UserLocation | null;
   notificationPermission: 'default' | 'granted' | 'denied';
+  // Sidebar preferences
+  sidebarPreferences: SidebarPreferences;
 }
 
 // Runtime state for notifications (not persisted to localStorage)
@@ -83,6 +86,10 @@ export const INITIAL_STATE: AppState = {
   reminders: [],
   userLocation: null,
   notificationPermission: 'default',
+  // Sidebar preferences
+  sidebarPreferences: {
+    deadlineScopeFilter: 'all',
+  },
 };
 
 // Inbox constant - tasks with contextId: null are in inbox
@@ -90,6 +97,18 @@ export const INBOX_ID = null;
 
 // Deadline urgency levels for visual styling
 export type DeadlineUrgency = 'overdue' | 'urgent' | 'warning' | 'neutral';
+
+// Sidebar preferences - deadline scope filter
+export type DeadlineScopeFilter = 'all' | 'active-context';
+
+export interface SidebarPreferences {
+  /**
+   * Controls which deadlines are displayed in the Important Dates tab.
+   * - 'all': Show deadlines from all contexts in the current session
+   * - 'active-context': Show only deadlines from the currently active context
+   */
+  deadlineScopeFilter: DeadlineScopeFilter;
+}
 
 // Countdown display information
 export interface CountdownDisplay {

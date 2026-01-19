@@ -3,6 +3,7 @@
 import { ContextTimer } from './ContextTimer';
 import { ContextDatesSection } from './ContextDatesSection';
 import { formatDuration } from '@/lib/allocation';
+import { useStore } from '@/lib/store';
 import type { Context, ContextAllocation } from '@/lib/types';
 
 interface ActiveContextPanelProps {
@@ -22,6 +23,8 @@ export function ActiveContextPanel({
   isPausedByReminder,
   onTimeExhausted,
 }: ActiveContextPanelProps) {
+  const { adjustContextTime } = useStore();
+
   return (
     <div className="p-6 border rounded-lg bg-card">
       <div className="flex items-start justify-between mb-4">
@@ -45,9 +48,13 @@ export function ActiveContextPanel({
         <ContextTimer
           allocatedMinutes={allocation.allocatedMinutes}
           usedMinutes={allocation.usedMinutes}
+          adjustedMinutes={allocation.adjustedMinutes ?? 0}
           contextStartedAt={contextStartedAt}
           isPaused={isPaused}
           onTimeExhausted={onTimeExhausted}
+          contextId={allocation.contextId}
+          contextName={context.name}
+          onAdjustTime={adjustContextTime}
         />
       </div>
 

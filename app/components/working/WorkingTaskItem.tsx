@@ -2,6 +2,19 @@
 
 import { useCallback, useSyncExternalStore, useState, useRef, useEffect, useMemo } from 'react';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 import type { ContextColorName } from '@/lib/colors';
@@ -13,6 +26,7 @@ interface WorkingTaskItemProps {
   contextColor?: ContextColorName;
   onToggleCompleted: (taskId: string) => void;
   onUpdateDescription?: (description: string) => void;
+  onDelete?: (taskId: string) => void;
 }
 
 // Rotating placeholder prompts for micro-delight
@@ -55,7 +69,9 @@ export function WorkingTaskItem({
   contextColor,
   onToggleCompleted,
   onUpdateDescription,
+  onDelete,
 }: WorkingTaskItemProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const announcement = useSyncExternalStore(
     subscribeToTaskAnnouncement,
     getTaskAnnouncementSnapshot,
@@ -257,6 +273,43 @@ export function WorkingTaskItem({
           )}
         </div>
       </div>
+
+      {/* Delete button - shows on hover */}
+      {onDelete && (
+        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <AlertDialogTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={cn(
+                'absolute top-3 right-2 size-8 text-muted-foreground hover:text-destructive',
+                'transition-opacity',
+                isHovering ? 'opacity-100' : 'opacity-0'
+              )}
+              aria-label={`Delete task "${task.title}"`}
+            >
+              <Trash2 className="size-4" />
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Delete Task</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to delete &quot;{task.title}&quot;? This action cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => onDelete(task.id)}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Delete
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
 
       {/* Screen reader announcement for task status changes */}
       <div

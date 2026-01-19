@@ -23,6 +23,8 @@ import {
   UserLocation,
   TriggeredNotification,
   NotificationRuntimeState,
+  SidebarPreferences,
+  ImportantDate,
 } from './types';
 import { loadState, saveState, generateId, now } from './storage';
 import { getDemoData } from './demoData';
@@ -45,6 +47,7 @@ type Action =
   | { type: 'START_SESSION'; payload: { totalDuration: number; allocations: ContextAllocation[] } }
   | { type: 'SWITCH_CONTEXT'; payload: { contextId: string; elapsedMinutes: number } }
   | { type: 'UPDATE_SESSION_TIME'; payload: { contextId: string; usedMinutes: number } }
+  | { type: 'ADJUST_CONTEXT_TIME'; payload: { contextId: string; newRemainingMinutes: number; currentElapsedMinutes: number } }
   | { type: 'END_SESSION' }
   | { type: 'PAUSE_SESSION' }
   | { type: 'RESUME_SESSION' }
@@ -64,7 +67,12 @@ type Action =
   | { type: 'UPDATE_REMINDER_LAST_TRIGGERED'; payload: { id: string; triggeredAt: string } }
   // User location actions
   | { type: 'SET_USER_LOCATION'; payload: UserLocation | null }
-  | { type: 'SET_NOTIFICATION_PERMISSION'; payload: 'default' | 'granted' | 'denied' };
+  | { type: 'SET_NOTIFICATION_PERMISSION'; payload: 'default' | 'granted' | 'denied' }
+  // Sidebar preferences actions
+  | { type: 'UPDATE_SIDEBAR_PREFERENCES'; payload: Partial<SidebarPreferences> }
+  // Important date actions
+  | { type: 'ADD_IMPORTANT_DATE'; payload: { contextId: string; date: Omit<ImportantDate, 'id'> } }
+  | { type: 'DELETE_IMPORTANT_DATE'; payload: { contextId: string; dateId: string } };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -156,12 +164,17 @@ function reducer(state: AppState, action: Action): AppState {
 
     // Session actions
     case 'START_SESSION': {
+      // Initialize adjustedMinutes: 0 for all allocations
+      const initializedAllocations = action.payload.allocations.map((alloc) => ({
+        ...alloc,
+        adjustedMinutes: alloc.adjustedMinutes ?? 0,
+      }));
       const session: Session = {
         id: generateId(),
         totalDuration: action.payload.totalDuration,
         startedAt: now(),
-        allocations: action.payload.allocations,
-        activeContextId: action.payload.allocations[0]?.contextId ?? null,
+        allocations: initializedAllocations,
+        activeContextId: initializedAllocations[0]?.contextId ?? null,
         contextStartedAt: now(),
         status: 'active',
       };
@@ -195,6 +208,36 @@ function reducer(state: AppState, action: Action): AppState {
               ? { ...alloc, usedMinutes: action.payload.usedMinutes }
               : alloc
           ),
+        },
+      };
+    }
+    case 'ADJUST_CONTEXT_TIME': {
+      if (!state.session) return state;
+
+      const { contextId, newRemainingMinutes, currentElapsedMinutes } = action.payload;
+      const targetAlloc = state.session.allocations.find((a) => a.contextId === contextId);
+      if (!targetAlloc) return state;
+
+      // Formula: remaining = allocated - usedMinutes - elapsed
+      // To achieve newRemaining: newUsedMinutes = allocated - newRemaining - elapsed
+      // Constraint: newUsedMinutes >= 0 (can't have negative used time)
+      // Maximum remaining = allocated - elapsed (when usedMinutes = 0)
+      const maxRemaining = targetAlloc.allocatedMinutes - currentElapsedMinutes;
+      const clampedRemaining = Math.min(newRemainingMinutes, maxRemaining);
+      const newUsedMinutes = Math.max(0, targetAlloc.allocatedMinutes - clampedRemaining - currentElapsedMinutes);
+
+      // Update allocations with new usedMinutes
+      const updatedAllocations = state.session.allocations.map((alloc) =>
+        alloc.contextId === contextId
+          ? { ...alloc, usedMinutes: newUsedMinutes }
+          : alloc
+      );
+
+      return {
+        ...state,
+        session: {
+          ...state.session,
+          allocations: updatedAllocations,
         },
       };
     }
@@ -323,6 +366,49 @@ function reducer(state: AppState, action: Action): AppState {
       return { ...state, notificationPermission: action.payload };
     }
 
+    // Sidebar preferences actions
+    case 'UPDATE_SIDEBAR_PREFERENCES': {
+      return {
+        ...state,
+        sidebarPreferences: {
+          ...state.sidebarPreferences,
+          ...action.payload,
+        },
+      };
+    }
+
+    // Important date actions
+    case 'ADD_IMPORTANT_DATE': {
+      const newDate: ImportantDate = {
+        ...action.payload.date,
+        id: generateId(),
+      };
+      return {
+        ...state,
+        contexts: state.contexts.map((ctx) =>
+          ctx.id === action.payload.contextId
+            ? { ...ctx, importantDates: [...(ctx.importantDates || []), newDate], updatedAt: now() }
+            : ctx
+        ),
+      };
+    }
+    case 'DELETE_IMPORTANT_DATE': {
+      return {
+        ...state,
+        contexts: state.contexts.map((ctx) =>
+          ctx.id === action.payload.contextId
+            ? {
+                ...ctx,
+                importantDates: (ctx.importantDates || []).filter(
+                  (d) => d.id !== action.payload.dateId
+                ),
+                updatedAt: now(),
+              }
+            : ctx
+        ),
+      };
+    }
+
     default:
       return state;
   }
@@ -348,6 +434,7 @@ interface StoreContextType {
   startSession: (totalDuration: number, allocations: ContextAllocation[]) => void;
   switchContext: (contextId: string, elapsedMinutes: number) => void;
   updateSessionTime: (contextId: string, usedMinutes: number) => void;
+  adjustContextTime: (contextId: string, newRemainingMinutes: number, currentElapsedMinutes: number) => void;
   endSession: () => void;
   pauseSession: () => void;
   resumeSession: () => void;
@@ -381,6 +468,11 @@ interface StoreContextType {
   acknowledgeNotification: () => void;
   snoozeNotification: (minutes: number) => void;
   dismissNotification: () => void;
+  // Sidebar preferences actions
+  updateSidebarPreferences: (preferences: Partial<SidebarPreferences>) => void;
+  // Important date actions
+  addImportantDate: (contextId: string, date: Omit<ImportantDate, 'id'>) => void;
+  deleteImportantDate: (contextId: string, dateId: string) => void;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -486,6 +578,16 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const updateSessionTime = useCallback(
     (contextId: string, usedMinutes: number) => {
       dispatch({ type: 'UPDATE_SESSION_TIME', payload: { contextId, usedMinutes } });
+    },
+    []
+  );
+
+  const adjustContextTime = useCallback(
+    (contextId: string, newRemainingMinutes: number, currentElapsedMinutes: number) => {
+      dispatch({
+        type: 'ADJUST_CONTEXT_TIME',
+        payload: { contextId, newRemainingMinutes, currentElapsedMinutes },
+      });
     },
     []
   );
@@ -682,6 +784,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     processNextNotification();
   }, [processNextNotification]);
 
+  // Sidebar preferences actions
+  const updateSidebarPreferences = useCallback(
+    (preferences: Partial<SidebarPreferences>) => {
+      dispatch({ type: 'UPDATE_SIDEBAR_PREFERENCES', payload: preferences });
+    },
+    []
+  );
+
+  // Important date actions
+  const addImportantDate = useCallback(
+    (contextId: string, date: Omit<ImportantDate, 'id'>) => {
+      dispatch({ type: 'ADD_IMPORTANT_DATE', payload: { contextId, date } });
+    },
+    []
+  );
+
+  const deleteImportantDate = useCallback(
+    (contextId: string, dateId: string) => {
+      dispatch({ type: 'DELETE_IMPORTANT_DATE', payload: { contextId, dateId } });
+    },
+    []
+  );
+
   const value: StoreContextType = {
     state,
     isHydrated,
@@ -697,6 +822,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     startSession,
     switchContext,
     updateSessionTime,
+    adjustContextTime,
     endSession,
     pauseSession,
     resumeSession,
@@ -727,6 +853,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     acknowledgeNotification,
     snoozeNotification,
     dismissNotification,
+    // Sidebar preferences actions
+    updateSidebarPreferences,
+    // Important date actions
+    addImportantDate,
+    deleteImportantDate,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

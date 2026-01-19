@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useStore } from './store';
-import { getNextTriggerTime } from './reminders';
+import { getNextTriggerTime, isReminderOverdue } from './reminders';
 import { showBrowserNotification } from './notifications';
 import { getPrayerTimesForToday, getNextPrayerTime } from './prayerTimes';
 import type { Reminder, TriggeredNotification, DailyPrayerTimes, PrayerReminderConfig } from './types';
@@ -108,43 +108,6 @@ export function useReminderScheduler() {
     [updateReminderLastTriggered, triggerNotification]
   );
 
-  // Check and trigger reminders
-  const checkReminders = useCallback(() => {
-    if (!isHydrated) return;
-
-    const now = new Date();
-    const enabledReminders = getEnabledReminders();
-    const isSessionActive = state.session?.status === 'active';
-
-    enabledReminders.forEach((reminder) => {
-      // Skip session-only reminders when not in an active session
-      if (reminder.scope === 'session-only' && !isSessionActive) {
-        return;
-      }
-
-      if (reminder.config.type === 'prayer') {
-        // Handle prayer reminders
-        checkPrayerReminders(reminder, now);
-      } else {
-        // Handle interval and fixed-time reminders
-        const nextTrigger = getNextTriggerTime(reminder, now);
-        if (!nextTrigger) return;
-
-        // Check if we should trigger (within 1 second window)
-        const diff = nextTrigger.getTime() - now.getTime();
-        if (diff <= 0 && diff > -SCHEDULER_INTERVAL_MS) {
-          // Trigger the reminder
-          handleReminderTrigger(reminder);
-        }
-      }
-    });
-
-    // Process any snoozed notifications that are ready
-    processSnoozedNotifications();
-
-    lastCheckRef.current = now.getTime();
-  }, [isHydrated, getEnabledReminders, checkPrayerReminders, processSnoozedNotifications, state.session?.status]);
-
   // Handle triggering a reminder
   const handleReminderTrigger = useCallback(
     (reminder: Reminder) => {
@@ -176,6 +139,51 @@ export function useReminderScheduler() {
     },
     [updateReminderLastTriggered, triggerNotification]
   );
+
+  // Check and trigger reminders
+  const checkReminders = useCallback(() => {
+    if (!isHydrated) return;
+
+    const now = new Date();
+    const enabledReminders = getEnabledReminders();
+    const isSessionActive = state.session?.status === 'active';
+
+    enabledReminders.forEach((reminder) => {
+      // Skip session-only reminders when not in an active session
+      if (reminder.scope === 'session-only' && !isSessionActive) {
+        return;
+      }
+
+      if (reminder.config.type === 'prayer') {
+        // Handle prayer reminders
+        checkPrayerReminders(reminder, now);
+      } else {
+        // Check if reminder is overdue (missed trigger recovery)
+        // This runs BEFORE getNextTriggerTime to detect missed triggers
+        // before the while loop can skip over them
+        if (isReminderOverdue(reminder, now)) {
+          handleReminderTrigger(reminder);
+          return; // Don't also check normal trigger
+        }
+
+        // Handle interval and fixed-time reminders (normal on-time trigger)
+        const nextTrigger = getNextTriggerTime(reminder, now);
+        if (!nextTrigger) return;
+
+        // Check if we should trigger (within 1 second window)
+        const diff = nextTrigger.getTime() - now.getTime();
+
+        if (diff <= 0 && diff > -SCHEDULER_INTERVAL_MS) {
+          handleReminderTrigger(reminder);
+        }
+      }
+    });
+
+    // Process any snoozed notifications that are ready
+    processSnoozedNotifications();
+
+    lastCheckRef.current = now.getTime();
+  }, [isHydrated, getEnabledReminders, checkPrayerReminders, processSnoozedNotifications, state.session?.status, handleReminderTrigger]);
 
   // Fetch prayer times on mount and when location changes
   useEffect(() => {
