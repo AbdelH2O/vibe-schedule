@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { ClientProvider } from './components/ClientProvider';
 import { AppShell } from './components/AppShell';
 import { ModeIndicator } from './components/ModeIndicator';
@@ -16,18 +16,43 @@ import { ContextCardGrid } from './components/home/ContextCardGrid';
 import { SessionSuggestions } from './components/home/SessionSuggestions';
 import { ReminderModal } from './components/reminders/ReminderModal';
 import { DataManagement } from './components/settings/DataManagement';
+import { AuthProvider, useAuth } from './components/auth/AuthProvider';
+import { SignInDialog } from './components/auth/SignInDialog';
+import { SignOutDialog } from './components/auth/SignOutDialog';
+import { SyncStatusIndicator } from './components/sync/SyncStatusIndicator';
 import { useReminderScheduler } from '@/lib/useReminderScheduler';
 import { useStore } from '@/lib/store';
+import { clearLocalData } from '@/lib/storage';
 import { Button } from '@/components/ui/button';
-import { Settings } from 'lucide-react';
+import { Settings, Loader2 } from 'lucide-react';
+import type { AppState } from '@/lib/types';
 
 type Selection =
   | { type: 'inbox' }
   | { type: 'context'; id: string }
   | null;
 
+function AuthButtons() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <Button variant="ghost" size="sm" disabled>
+        <Loader2 className="h-4 w-4 animate-spin" />
+      </Button>
+    );
+  }
+
+  if (isAuthenticated) {
+    return <SignOutDialog />;
+  }
+
+  return <SignInDialog />;
+}
+
 function HomeContent() {
   const { state, getContextById, resumeSession, endSession } = useStore();
+  const { isAuthenticated, cloudData, isLoadingCloudData } = useAuth();
 
   // Initialize the reminder scheduler
   useReminderScheduler();
@@ -122,6 +147,8 @@ function HomeContent() {
             >
               <Settings className="h-4 w-4" />
             </Button>
+            <SyncStatusIndicator />
+            <AuthButtons />
             <ModeIndicator />
           </div>
         }
@@ -193,12 +220,29 @@ function ModeAnnouncementRegion({ mode, announcement }: { mode: string; announce
   );
 }
 
-export default function Home() {
+function HomeWithAuth() {
+  // Handle sign-out with optional data clearing
+  const handleSignOut = useCallback((clearData: boolean) => {
+    if (clearData) {
+      clearLocalData();
+      // Force page reload to reset state
+      window.location.reload();
+    }
+  }, []);
+
   return (
-    <ClientProvider>
+    <AuthProvider onSignOut={handleSignOut}>
       <HomeContent />
       {/* Global reminder modal - renders on top of everything */}
       <ReminderModal />
+    </AuthProvider>
+  );
+}
+
+export default function Home() {
+  return (
+    <ClientProvider>
+      <HomeWithAuth />
     </ClientProvider>
   );
 }

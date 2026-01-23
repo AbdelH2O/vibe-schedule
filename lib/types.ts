@@ -2,6 +2,105 @@
 
 import type { ContextColorName } from './colors';
 
+// ============================================
+// Sync Metadata Types (Cross-Device Sync)
+// ============================================
+
+/**
+ * Sync metadata applied to all syncable entities.
+ * Enables conflict resolution and soft delete.
+ */
+export interface SyncMetadata {
+  /** Server-assigned sequence number for ordering */
+  syncVersion: number;
+  /** Device ID that made the last change */
+  lastModifiedBy: string;
+  /** ISO timestamp for soft delete (null = active) */
+  deletedAt: string | null;
+  /** User's auth.users.id (owner of this entity) */
+  userId: string;
+}
+
+/**
+ * Device information for tracking connected devices.
+ */
+export interface DeviceInfo {
+  /** UUID, generated once per device */
+  id: string;
+  /** User-friendly name (optional) */
+  name: string | null;
+  /** Browser/OS info for identification */
+  userAgent: string;
+  /** Last activity timestamp */
+  lastSeenAt: string;
+  /** When the device was first registered */
+  createdAt: string;
+}
+
+/**
+ * Operation type for offline queue entries.
+ */
+export type OutboxOperation = 'create' | 'update' | 'delete';
+
+/**
+ * An entry in the offline change queue.
+ * Persisted to localStorage for offline-first sync.
+ */
+export interface OutboxEntry {
+  /** UUID */
+  id: string;
+  /** Which entity type this change affects */
+  entityType: DataCategory;
+  /** ID of the affected entity */
+  entityId: string;
+  /** What operation was performed */
+  operation: OutboxOperation;
+  /** Entity data (for create/update) or null (delete) */
+  payload: unknown;
+  /** When the change was made */
+  createdAt: string;
+  /** Retry count */
+  attempts: number;
+  /** Last sync attempt timestamp */
+  lastAttemptAt: string | null;
+  /** Last error message */
+  error: string | null;
+}
+
+/**
+ * User preferences synced across devices.
+ * 1:1 relationship with user (id = user's auth.users.id).
+ */
+export interface UserPreferences {
+  /** User's auth.users.id (1:1 with user) */
+  id: string;
+  /** Sidebar display preferences */
+  sidebarPreferences: SidebarPreferences;
+  /** User location for prayer times */
+  userLocation: UserLocation | null;
+  /** Browser notification permission state */
+  notificationPermission: 'default' | 'granted' | 'denied';
+  /** Sync metadata */
+  syncVersion: number;
+  lastModifiedBy: string;
+  updatedAt: string;
+}
+
+/**
+ * Session ownership tracking for timer handoff between devices.
+ */
+export interface SessionOwnership {
+  /** Which device owns the timer */
+  activeDeviceId: string | null;
+  /** When ownership was claimed */
+  ownershipClaimedAt: string | null;
+}
+
+/**
+ * Sync status for UI indicators.
+ */
+export type SyncStatus = 'synced' | 'syncing' | 'offline' | 'error';
+
 export interface Context {
   id: string;
   name: string;
@@ -13,6 +112,11 @@ export interface Context {
   importantDates?: ImportantDate[];
   createdAt: string;
   updatedAt: string;
+  // Sync metadata (optional for offline-first compatibility)
+  userId?: string;
+  syncVersion?: number;
+  lastModifiedBy?: string;
+  deletedAt?: string | null;
 }
 
 export interface ImportantDate {
@@ -30,6 +134,11 @@ export interface Task {
   completed: boolean;
   createdAt: string;
   updatedAt: string;
+  // Sync metadata (optional for offline-first compatibility)
+  userId?: string;
+  syncVersion?: number;
+  lastModifiedBy?: string;
+  deletedAt?: string | null;
 }
 
 // App mode - Definition (planning) vs Working (executing)
@@ -44,6 +153,14 @@ export interface Session {
   activeContextId: string | null;
   contextStartedAt: string | null; // when current context began
   status: 'active' | 'paused' | 'suspended' | 'completed';
+  // Sync metadata (optional for offline-first compatibility)
+  userId?: string;
+  syncVersion?: number;
+  lastModifiedBy?: string;
+  deletedAt?: string | null;
+  // Ownership tracking for timer handoff between devices
+  activeDeviceId?: string | null;
+  ownershipClaimedAt?: string | null;
 }
 
 export interface ContextAllocation {
@@ -134,6 +251,12 @@ export interface SessionPreset {
   allocations: ContextAllocation[];
   contextIds?: string[]; // which contexts were selected (for restoration)
   createdAt: string;
+  // Sync metadata (optional for offline-first compatibility)
+  userId?: string;
+  syncVersion?: number;
+  lastModifiedBy?: string;
+  deletedAt?: string | null;
+  updatedAt?: string; // Added for LWW conflict resolution
 }
 
 // ============================================
@@ -203,6 +326,11 @@ export interface Reminder {
   lastTriggeredAt?: string; // ISO date string
   createdAt: string;
   updatedAt: string;
+  // Sync metadata (optional for offline-first compatibility)
+  userId?: string;
+  syncVersion?: number;
+  lastModifiedBy?: string;
+  deletedAt?: string | null;
 }
 
 /**

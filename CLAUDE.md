@@ -48,6 +48,8 @@ pnpm lint         # Run ESLint
 - TypeScript 5 (strict mode) + shadcn/ui, Radix UI primitives, Lucide React, Tailwind CSS 4 (008-workmode-sidebar)
 - TypeScript 5 (strict mode) + Next.js 16, React 19, shadcn/ui, Radix UI, Lucide React, Sonner (toasts) (009-data-export-import)
 - Browser localStorage (via existing `lib/storage.ts`) (009-data-export-import)
+- TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Supabase JS client (010-cross-device-sync)
+- Supabase PostgreSQL (cloud) + localStorage (offline queue, device ID) (010-cross-device-sync)
 
 ## Patterns & Conventions (006-polish-indicators)
 
@@ -81,6 +83,6 @@ pnpm lint         # Run ESLint
 - CSS keyframes in app/globals.css
 
 ## Recent Changes
+- 010-cross-device-sync: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Supabase JS client
 - 009-data-export-import: Added TypeScript 5 (strict mode) + Next.js 16, React 19, shadcn/ui, Radix UI, Lucide React, Sonner (toasts)
 - 008-workmode-sidebar: Added TypeScript 5 (strict mode) + shadcn/ui, Radix UI primitives, Lucide React, Tailwind CSS 4
-- 007-reminders-notifications: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Lucide React

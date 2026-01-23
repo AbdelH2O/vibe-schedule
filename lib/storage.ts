@@ -117,12 +117,45 @@ export function clearState(): void {
   }
 }
 
-// Generate a unique ID
+// Generate a unique ID using UUID v4
+// Uses crypto.randomUUID() for cross-device sync compatibility
 export function generateId(): string {
+  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+    return crypto.randomUUID();
+  }
+  // Fallback for older browsers (unlikely needed, but safe)
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
 // Get current ISO timestamp
 export function now(): string {
   return new Date().toISOString();
+}
+
+/**
+ * Clear all local data on sign-out.
+ * Removes app state and sync-related localStorage items.
+ * This is the same as clearState but also clears sync-related keys.
+ */
+export function clearLocalData(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    // Clear main app state
+    localStorage.removeItem(STORAGE_KEY);
+    // Clear sync-related keys (outbox, etc.)
+    localStorage.removeItem('vibe-schedule-outbox');
+    localStorage.removeItem('vibe-schedule-last-export');
+    // Note: Device ID is intentionally NOT cleared to maintain device identity
+    toast.success('Local data cleared', {
+      description: 'All local data has been removed. Your cloud data remains safe.',
+    });
+  } catch (error) {
+    console.error('Failed to clear local data:', error);
+    toast.error('Failed to clear data', {
+      description: 'Please try again or clear browser data manually.',
+    });
+  }
 }

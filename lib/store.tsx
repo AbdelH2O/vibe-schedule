@@ -35,6 +35,21 @@ type Action =
   | { type: 'ADD_CONTEXT'; payload: Omit<Context, 'id' | 'createdAt' | 'updatedAt'> }
   | { type: 'UPDATE_CONTEXT'; payload: { id: string; updates: Partial<Context> } }
   | { type: 'DELETE_CONTEXT'; payload: string }
+  // Sync actions (for realtime updates from other devices)
+  | { type: 'SYNC_INSERT_CONTEXT'; payload: Context }
+  | { type: 'SYNC_UPDATE_CONTEXT'; payload: Context }
+  | { type: 'SYNC_DELETE_CONTEXT'; payload: string }
+  | { type: 'SYNC_INSERT_TASK'; payload: Task }
+  | { type: 'SYNC_UPDATE_TASK'; payload: Task }
+  | { type: 'SYNC_DELETE_TASK'; payload: string }
+  | { type: 'SYNC_INSERT_REMINDER'; payload: Reminder }
+  | { type: 'SYNC_UPDATE_REMINDER'; payload: Reminder }
+  | { type: 'SYNC_DELETE_REMINDER'; payload: string }
+  | { type: 'SYNC_INSERT_PRESET'; payload: SessionPreset }
+  | { type: 'SYNC_UPDATE_PRESET'; payload: SessionPreset }
+  | { type: 'SYNC_DELETE_PRESET'; payload: string }
+  | { type: 'SYNC_UPDATE_SESSION'; payload: Session }
+  | { type: 'SYNC_UPDATE_PREFERENCES'; payload: Partial<AppState> }
   // Task actions
   | { type: 'ADD_TASK'; payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed'> }
   | { type: 'UPDATE_TASK'; payload: { id: string; updates: Partial<Task> } }
@@ -406,6 +421,106 @@ function reducer(state: AppState, action: Action): AppState {
               }
             : ctx
         ),
+      };
+    }
+
+    // Sync actions (for realtime updates from other devices)
+    case 'SYNC_INSERT_CONTEXT': {
+      // Don't insert if already exists
+      if (state.contexts.some((c) => c.id === action.payload.id)) {
+        return state;
+      }
+      return { ...state, contexts: [...state.contexts, action.payload] };
+    }
+    case 'SYNC_UPDATE_CONTEXT': {
+      return {
+        ...state,
+        contexts: state.contexts.map((ctx) =>
+          ctx.id === action.payload.id ? action.payload : ctx
+        ),
+      };
+    }
+    case 'SYNC_DELETE_CONTEXT': {
+      return {
+        ...state,
+        contexts: state.contexts.filter((ctx) => ctx.id !== action.payload),
+        // Move orphaned tasks to inbox
+        tasks: state.tasks.map((task) =>
+          task.contextId === action.payload ? { ...task, contextId: null } : task
+        ),
+      };
+    }
+    case 'SYNC_INSERT_TASK': {
+      if (state.tasks.some((t) => t.id === action.payload.id)) {
+        return state;
+      }
+      return { ...state, tasks: [...state.tasks, action.payload] };
+    }
+    case 'SYNC_UPDATE_TASK': {
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.payload.id ? action.payload : task
+        ),
+      };
+    }
+    case 'SYNC_DELETE_TASK': {
+      return {
+        ...state,
+        tasks: state.tasks.filter((task) => task.id !== action.payload),
+      };
+    }
+    case 'SYNC_INSERT_REMINDER': {
+      if ((state.reminders || []).some((r) => r.id === action.payload.id)) {
+        return state;
+      }
+      return { ...state, reminders: [...(state.reminders || []), action.payload] };
+    }
+    case 'SYNC_UPDATE_REMINDER': {
+      return {
+        ...state,
+        reminders: (state.reminders || []).map((reminder) =>
+          reminder.id === action.payload.id ? action.payload : reminder
+        ),
+      };
+    }
+    case 'SYNC_DELETE_REMINDER': {
+      return {
+        ...state,
+        reminders: (state.reminders || []).filter((r) => r.id !== action.payload),
+      };
+    }
+    case 'SYNC_INSERT_PRESET': {
+      if ((state.presets || []).some((p) => p.id === action.payload.id)) {
+        return state;
+      }
+      return { ...state, presets: [...(state.presets || []), action.payload] };
+    }
+    case 'SYNC_UPDATE_PRESET': {
+      return {
+        ...state,
+        presets: (state.presets || []).map((preset) =>
+          preset.id === action.payload.id ? action.payload : preset
+        ),
+      };
+    }
+    case 'SYNC_DELETE_PRESET': {
+      return {
+        ...state,
+        presets: (state.presets || []).filter((p) => p.id !== action.payload),
+      };
+    }
+    case 'SYNC_UPDATE_SESSION': {
+      // Update session if it matches current session ID
+      if (state.session?.id === action.payload.id) {
+        return { ...state, session: action.payload };
+      }
+      return state;
+    }
+    case 'SYNC_UPDATE_PREFERENCES': {
+      return {
+        ...state,
+        ...action.payload,
       };
     }
 
