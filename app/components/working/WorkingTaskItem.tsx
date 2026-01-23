@@ -14,7 +14,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Trash2 } from 'lucide-react';
+import { GripVertical, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 import type { ContextColorName } from '@/lib/colors';
@@ -27,6 +27,7 @@ interface WorkingTaskItemProps {
   onToggleCompleted: (taskId: string) => void;
   onUpdateDescription?: (description: string) => void;
   onDelete?: (taskId: string) => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
 // Rotating placeholder prompts for micro-delight
@@ -70,6 +71,7 @@ export function WorkingTaskItem({
   onToggleCompleted,
   onUpdateDescription,
   onDelete,
+  dragHandleProps,
 }: WorkingTaskItemProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const announcement = useSyncExternalStore(
@@ -167,12 +169,18 @@ export function WorkingTaskItem({
       /> */}
 
       {/* Main task row */}
-      <div className="flex items-start gap-4 p-4 pl-8">
-		{/* <span
-			className="size-2.5 rounded-full mt-1.5 -ml-4"
-			style={{ backgroundColor: 'var(--context-dot)' }}
-			aria-hidden="true"
-		/> */}
+      <div className="flex items-start gap-3 p-4 pl-4">
+        {/* Drag handle */}
+        {dragHandleProps && !task.completed && (
+          <button
+            type="button"
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing p-0.5 mt-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors touch-none"
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="size-5" aria-hidden="true" />
+          </button>
+        )}
         <Checkbox
           id={`task-${task.id}`}
           checked={task.completed}

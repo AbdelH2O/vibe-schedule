@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { CountdownBadge } from '../shared/CountdownBadge';
 import { cn } from '@/lib/utils';
-import { Pencil, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Trash2 } from 'lucide-react';
 
 // Rotating placeholder prompts for micro-delight
 const PLACEHOLDER_PROMPTS = [
@@ -24,9 +24,10 @@ export interface TaskListItemProps {
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
   onUpdateDescription?: (taskId: string, description: string) => void;
+  dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
 }
 
-export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription }: TaskListItemProps) {
+export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription, dragHandleProps }: TaskListItemProps) {
   const { toggleTaskCompleted, deleteTask, state } = useStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -108,7 +109,18 @@ export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription }: Ta
       onMouseLeave={() => setIsHovering(false)}
     >
       {/* Main task row */}
-      <div className="flex items-start gap-3">
+      <div className="flex items-start gap-2">
+        {/* Drag handle */}
+        {dragHandleProps && (
+          <button
+            type="button"
+            {...dragHandleProps}
+            className="cursor-grab active:cursor-grabbing p-0.5 -ml-1 mt-0.5 hover:bg-muted rounded text-muted-foreground hover:text-foreground transition-colors touch-none"
+            aria-label="Drag to reorder"
+          >
+            <GripVertical className="size-4" aria-hidden="true" />
+          </button>
+        )}
         <Checkbox
           checked={task.completed}
           onCheckedChange={() => toggleTaskCompleted(task.id)}

@@ -28,6 +28,7 @@ import {
 } from './types';
 import { loadState, saveState, generateId, now } from './storage';
 import { getDemoData } from './demoData';
+import { generateEndPosition } from './position';
 
 // Action types
 type Action =
@@ -51,11 +52,12 @@ type Action =
   | { type: 'SYNC_UPDATE_SESSION'; payload: Session }
   | { type: 'SYNC_UPDATE_PREFERENCES'; payload: Partial<AppState> }
   // Task actions
-  | { type: 'ADD_TASK'; payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed'> }
+  | { type: 'ADD_TASK'; payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position'> }
   | { type: 'UPDATE_TASK'; payload: { id: string; updates: Partial<Task> } }
   | { type: 'DELETE_TASK'; payload: string }
   | { type: 'TOGGLE_TASK_COMPLETED'; payload: string }
   | { type: 'MOVE_TASK_TO_CONTEXT'; payload: { taskId: string; contextId: string | null } }
+  | { type: 'REORDER_TASK'; payload: { taskId: string; newPosition: string } }
   // Mode actions
   | { type: 'SET_MODE'; payload: AppMode }
   // Session actions
@@ -126,10 +128,16 @@ function reducer(state: AppState, action: Action): AppState {
 
     // Task actions
     case 'ADD_TASK': {
+      // Find tasks in the same context to calculate position at end
+      const contextTasks = state.tasks.filter(
+        (t) => t.contextId === action.payload.contextId && !t.completed
+      );
+      const position = generateEndPosition(contextTasks);
       const newTask: Task = {
         ...action.payload,
         id: generateId(),
         completed: false,
+        position,
         createdAt: now(),
         updatedAt: now(),
       };
@@ -152,21 +160,52 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'TOGGLE_TASK_COMPLETED': {
+      const targetTask = state.tasks.find((t) => t.id === action.payload);
+      if (!targetTask) return state;
+
+      // If uncompleting, assign position at end of active tasks in same context
+      let newPosition = targetTask.position;
+      if (targetTask.completed) {
+        const activeTasksInContext = state.tasks.filter(
+          (t) => t.contextId === targetTask.contextId && !t.completed && t.id !== targetTask.id
+        );
+        newPosition = generateEndPosition(activeTasksInContext);
+      }
+
       return {
         ...state,
         tasks: state.tasks.map((task) =>
           task.id === action.payload
-            ? { ...task, completed: !task.completed, updatedAt: now() }
+            ? { ...task, completed: !task.completed, position: newPosition, updatedAt: now() }
             : task
         ),
       };
     }
     case 'MOVE_TASK_TO_CONTEXT': {
+      // Find tasks in the target context to calculate position at end
+      const targetTask = state.tasks.find((t) => t.id === action.payload.taskId);
+      if (!targetTask) return state;
+
+      const targetContextTasks = state.tasks.filter(
+        (t) => t.contextId === action.payload.contextId && !t.completed && t.id !== action.payload.taskId
+      );
+      const newPosition = generateEndPosition(targetContextTasks);
+
       return {
         ...state,
         tasks: state.tasks.map((task) =>
           task.id === action.payload.taskId
-            ? { ...task, contextId: action.payload.contextId, updatedAt: now() }
+            ? { ...task, contextId: action.payload.contextId, position: newPosition, updatedAt: now() }
+            : task
+        ),
+      };
+    }
+    case 'REORDER_TASK': {
+      return {
+        ...state,
+        tasks: state.tasks.map((task) =>
+          task.id === action.payload.taskId
+            ? { ...task, position: action.payload.newPosition, updatedAt: now() }
             : task
         ),
       };
@@ -544,11 +583,12 @@ interface StoreContextType {
   updateContext: (id: string, updates: Partial<Context>) => void;
   deleteContext: (id: string) => void;
   // Task actions
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed'>) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position'>) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTaskCompleted: (id: string) => void;
   moveTaskToContext: (taskId: string, contextId: string | null) => void;
+  reorderTask: (taskId: string, newPosition: string) => void;
   // Mode actions
   setMode: (mode: AppMode) => void;
   // Session actions
@@ -651,7 +691,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Task actions
   const addTask = useCallback(
-    (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed'>) => {
+    (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position'>) => {
       dispatch({ type: 'ADD_TASK', payload: task });
     },
     []
@@ -672,6 +712,13 @@ export function StoreProvider({ children }: { children: ReactNode }) {
   const moveTaskToContext = useCallback(
     (taskId: string, contextId: string | null) => {
       dispatch({ type: 'MOVE_TASK_TO_CONTEXT', payload: { taskId, contextId } });
+    },
+    []
+  );
+
+  const reorderTask = useCallback(
+    (taskId: string, newPosition: string) => {
+      dispatch({ type: 'REORDER_TASK', payload: { taskId, newPosition } });
     },
     []
   );
@@ -749,12 +796,17 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   const getTasksByContextId = useCallback(
     (contextId: string | null) =>
-      state.tasks.filter((task) => task.contextId === contextId),
+      state.tasks
+        .filter((task) => task.contextId === contextId)
+        .sort((a, b) => (a.position || '').localeCompare(b.position || '')),
     [state.tasks]
   );
 
   const getInboxTasks = useCallback(
-    () => state.tasks.filter((task) => task.contextId === null),
+    () =>
+      state.tasks
+        .filter((task) => task.contextId === null)
+        .sort((a, b) => (a.position || '').localeCompare(b.position || '')),
     [state.tasks]
   );
 
@@ -939,6 +991,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     deleteTask,
     toggleTaskCompleted,
     moveTaskToContext,
+    reorderTask,
     setMode,
     startSession,
     switchContext,

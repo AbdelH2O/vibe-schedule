@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { TaskList } from '../tasks/TaskList';
+import { SortableTaskList } from '../tasks/SortableTaskList';
 import { EditTaskDialog } from '../tasks/EditTaskDialog';
 import { EmptyState } from '../shared/EmptyState';
 import { ContextDetailHeader } from './ContextDetailHeader';
@@ -23,7 +24,7 @@ interface ContextDetailProps {
 }
 
 export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
-  const { deleteContext, getTasksByContextId, updateContext, updateTask, state } = useStore();
+  const { deleteContext, getTasksByContextId, updateContext, updateTask, reorderTask, state } = useStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -166,10 +167,11 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
             <div className="p-4 space-y-4">
               {/* Active tasks */}
               {activeTasks.length > 0 && (
-                <TaskList
+                <SortableTaskList
                   tasks={activeTasks}
                   onEditTask={isDefinitionMode ? setEditingTask : undefined}
                   onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
+                  onReorder={reorderTask}
                 />
               )}
 

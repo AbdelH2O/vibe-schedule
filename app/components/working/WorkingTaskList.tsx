@@ -1,13 +1,29 @@
 'use client';
 
 import { forwardRef } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
+import { restrictToVerticalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
 import { useStore } from '@/lib/store';
 import type { ContextColorName } from '@/lib/colors';
-import { WorkingTaskItem } from './WorkingTaskItem';
+import { SortableWorkingTaskItem } from './SortableWorkingTaskItem';
 import { WorkingQuickAdd, type WorkingQuickAddRef } from './WorkingQuickAdd';
 import { UrgentTasksBanner } from './UrgentTasksBanner';
 import { CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { calculateNewPosition } from '@/lib/position';
 
 interface WorkingTaskListProps {
   contextId: string;
@@ -16,11 +32,34 @@ interface WorkingTaskListProps {
 
 export const WorkingTaskList = forwardRef<WorkingQuickAddRef, WorkingTaskListProps>(
   function WorkingTaskList({ contextId, contextColor }, ref) {
-    const { getTasksByContextId, toggleTaskCompleted, updateTask, deleteTask } = useStore();
+    const { getTasksByContextId, toggleTaskCompleted, updateTask, deleteTask, reorderTask } = useStore();
 
     const tasks = getTasksByContextId(contextId);
     const completedCount = tasks.filter((t) => t.completed).length;
     const totalCount = tasks.length;
+
+    const sensors = useSensors(
+      useSensor(PointerSensor, {
+        activationConstraint: { distance: 8 },
+      }),
+      useSensor(KeyboardSensor, {
+        coordinateGetter: sortableKeyboardCoordinates,
+      })
+    );
+
+    const handleDragEnd = (event: DragEndEvent) => {
+      const { active, over } = event;
+      if (!over || active.id === over.id) return;
+
+      const sortedItems = tasks.map((t) => ({ id: t.id, position: t.position }));
+      const newPosition = calculateNewPosition(
+        sortedItems,
+        active.id as string,
+        over.id as string
+      );
+
+      reorderTask(active.id as string, newPosition);
+    };
 
     return (
       <div className={cn(
@@ -53,21 +92,32 @@ export const WorkingTaskList = forwardRef<WorkingQuickAddRef, WorkingTaskListPro
             </p>
           </div>
         ) : (
-          <ul className="space-y-3" role="list">
-            {tasks.map((task) => (
-              <li key={task.id}>
-                <WorkingTaskItem
-                  task={task}
-                  contextColor={contextColor}
-                  onToggleCompleted={toggleTaskCompleted}
-                  onUpdateDescription={(description) =>
-                    updateTask(task.id, { description })
-                  }
-                  onDelete={deleteTask}
-                />
-              </li>
-            ))}
-          </ul>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+            modifiers={[restrictToVerticalAxis, restrictToParentElement]}
+          >
+            <SortableContext
+              items={tasks.map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <ul className="space-y-3" role="list">
+                {tasks.map((task) => (
+                  <SortableWorkingTaskItem
+                    key={task.id}
+                    task={task}
+                    contextColor={contextColor}
+                    onToggleCompleted={toggleTaskCompleted}
+                    onUpdateDescription={(description) =>
+                      updateTask(task.id, { description })
+                    }
+                    onDelete={deleteTask}
+                  />
+                ))}
+              </ul>
+            </SortableContext>
+          </DndContext>
         )}
       </div>
     );

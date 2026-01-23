@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Task } from '@/lib/types';
 import { useStore } from '@/lib/store';
-import { TaskList } from './TaskList';
+import { SortableTaskList } from './SortableTaskList';
 import { CreateTaskDialog } from './CreateTaskDialog';
 import { EditTaskDialog } from './EditTaskDialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Inbox, Plus } from 'lucide-react';
 
 export function InboxView() {
-  const { getInboxTasks, updateTask, state } = useStore();
+  const { getInboxTasks, updateTask, reorderTask, state } = useStore();
   const [isCreateTaskOpen, setIsCreateTaskOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const inboxTasks = getInboxTasks();
@@ -39,7 +39,7 @@ export function InboxView() {
         <p className="text-sm text-muted-foreground mb-4">
           {inboxTasks.length} unassigned {inboxTasks.length === 1 ? 'task' : 'tasks'}
         </p>
-        <TaskList
+        <SortableTaskList
           tasks={inboxTasks}
           emptyMessage="Inbox is empty"
           emptyDescription="Tasks without a context will appear here. Assign them to contexts during work sessions."
@@ -57,6 +57,7 @@ export function InboxView() {
           }
           onEditTask={isDefinitionMode ? setEditingTask : undefined}
           onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
+          onReorder={reorderTask}
         />
       </CardContent>
 

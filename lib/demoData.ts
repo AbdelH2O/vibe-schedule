@@ -4,6 +4,7 @@
 import type { ContextColorName } from './colors';
 import type { Context, Task, ImportantDate } from './types';
 import { generateId, now } from './storage';
+import { generateEndPosition } from './position';
 
 interface DemoContextDef {
   name: string;
@@ -376,23 +377,36 @@ export function getDemoData(): { contexts: Context[]; tasks: Task[] } {
     };
   });
 
-  // Generate tasks with proper context IDs
+  // Generate tasks with proper context IDs and positions
+  // Track existing tasks per context for position calculation
+  const tasksByContext: Map<string | null, Task[]> = new Map();
+
   const tasks: Task[] = DEMO_TASKS.map((def) => {
     const contextId = def.contextName ? contextNameToId[def.contextName] : null;
     const deadline = def.daysUntilDeadline
       ? addDays(today, def.daysUntilDeadline).toISOString()
       : undefined;
 
-    return {
+    // Get existing tasks in this context for position calculation
+    const existingTasks = tasksByContext.get(contextId) || [];
+    const position = generateEndPosition(existingTasks);
+
+    const task: Task = {
       id: generateId(),
       title: def.title,
       description: def.description,
       contextId,
       deadline,
       completed: false,
+      position,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
+
+    // Track this task for next position calculation
+    tasksByContext.set(contextId, [...existingTasks, task]);
+
+    return task;
   });
 
   return { contexts, tasks };

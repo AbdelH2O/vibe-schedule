@@ -132,6 +132,7 @@ export interface Task {
   contextId: string | null; // null = inbox
   deadline?: string; // ISO date string, display only
   completed: boolean;
+  position: string; // Fractional index for ordering (e.g., "a0", "a0V")
   createdAt: string;
   updatedAt: string;
   // Sync metadata (optional for offline-first compatibility)

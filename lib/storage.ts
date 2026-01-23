@@ -1,6 +1,7 @@
-import { AppState, Context, INITIAL_STATE } from './types';
+import { AppState, Context, Task, INITIAL_STATE } from './types';
 import { toast } from 'sonner';
 import { getDefaultColorByIndex } from './colors';
+import { generateInitialPositions } from './position';
 
 const STORAGE_KEY = 'vibe-schedule-state';
 
@@ -43,9 +44,40 @@ export function loadState(): AppState {
         })) as Context[]
       : [];
 
+    // Migrate tasks: add position to tasks without one
+    const rawTasks: Task[] = Array.isArray(parsed.tasks) ? parsed.tasks : [];
+    const tasksNeedingPosition = rawTasks.filter((t) => !t.position);
+
+    let tasks = rawTasks;
+    if (tasksNeedingPosition.length > 0) {
+      // Group tasks by contextId, sorted by createdAt
+      const tasksByContext = new Map<string | null, Task[]>();
+      for (const task of rawTasks) {
+        const contextId = task.contextId;
+        if (!tasksByContext.has(contextId)) {
+          tasksByContext.set(contextId, []);
+        }
+        tasksByContext.get(contextId)!.push(task);
+      }
+
+      // Assign positions within each context
+      tasks = [];
+      for (const [, contextTasks] of tasksByContext) {
+        // Sort by createdAt to maintain insertion order
+        contextTasks.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+        const positions = generateInitialPositions(contextTasks.length);
+        for (let i = 0; i < contextTasks.length; i++) {
+          tasks.push({
+            ...contextTasks[i],
+            position: contextTasks[i].position || positions[i],
+          });
+        }
+      }
+    }
+
     return {
       contexts,
-      tasks: Array.isArray(parsed.tasks) ? parsed.tasks : [],
+      tasks,
       mode,
       session,
       presets: Array.isArray(parsed.presets) ? parsed.presets : [],
