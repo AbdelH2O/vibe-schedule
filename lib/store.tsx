@@ -257,7 +257,13 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'END_SESSION': {
-      return { ...state, session: null, mode: 'definition' };
+      // Reset lastTriggeredAt for session-only reminders so they start fresh next session
+      const resetReminders = (state.reminders || []).map((reminder) =>
+        reminder.scope === 'session-only'
+          ? { ...reminder, lastTriggeredAt: undefined }
+          : reminder
+      );
+      return { ...state, session: null, mode: 'definition', reminders: resetReminders };
     }
     case 'PAUSE_SESSION': {
       if (!state.session) return state;

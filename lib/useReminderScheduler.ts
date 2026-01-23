@@ -144,6 +144,10 @@ export function useReminderScheduler() {
   const checkReminders = useCallback(() => {
     if (!isHydrated) return;
 
+    // Don't schedule new reminders while a notification dialog is open
+    // User must acknowledge/dismiss current notification first
+    if (notificationState.activeNotification) return;
+
     const now = new Date();
     const enabledReminders = getEnabledReminders();
     const isSessionActive = state.session?.status === 'active';
@@ -183,7 +187,7 @@ export function useReminderScheduler() {
     processSnoozedNotifications();
 
     lastCheckRef.current = now.getTime();
-  }, [isHydrated, getEnabledReminders, checkPrayerReminders, processSnoozedNotifications, state.session?.status, handleReminderTrigger]);
+  }, [isHydrated, getEnabledReminders, checkPrayerReminders, processSnoozedNotifications, state.session?.status, handleReminderTrigger, notificationState.activeNotification]);
 
   // Fetch prayer times on mount and when location changes
   useEffect(() => {
