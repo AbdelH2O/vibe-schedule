@@ -169,7 +169,7 @@ export function WorkingTaskItem({
       /> */}
 
       {/* Main task row */}
-      <div className="flex items-start gap-3 p-4 pl-4">
+      <div className="flex items-start gap-2 p-3">
         {/* Drag handle */}
         {dragHandleProps && !task.completed && (
           <button
@@ -198,27 +198,64 @@ export function WorkingTaskItem({
             <label
               htmlFor={`task-${task.id}`}
               className={cn(
-                'text-base font-medium cursor-pointer select-none leading-tight text-foreground',
+                'text-sm font-medium cursor-pointer select-none leading-tight text-foreground',
                 task.completed && 'line-through text-muted-foreground'
               )}
             >
               {task.title}
             </label>
-            {/* Deadline badge - always visible for urgent/warning/overdue, hover for neutral */}
-            {task.deadline && !task.completed && (() => {
-              const urgency = getDeadlineUrgency(task.deadline);
-              const shouldShow = urgency !== 'neutral' || isHovering;
-              return shouldShow ? (
-                <CountdownBadge
-                  date={task.deadline}
-                  showIcon={true}
-                  className={cn(
-                    'shrink-0 transition-opacity',
-                    urgency === 'neutral' && 'opacity-70'
-                  )}
-                />
-              ) : null;
-            })()}
+            <div className="flex items-center gap-1 shrink-0">
+              {/* Deadline badge - always visible for urgent/warning/overdue, hover for neutral */}
+              {task.deadline && !task.completed && (() => {
+                const urgency = getDeadlineUrgency(task.deadline);
+                const shouldShow = urgency !== 'neutral' || isHovering;
+                return shouldShow ? (
+                  <CountdownBadge
+                    date={task.deadline}
+                    showIcon={true}
+                    className={cn(
+                      'transition-opacity',
+                      urgency === 'neutral' && 'opacity-70'
+                    )}
+                  />
+                ) : null;
+              })()}
+              {/* Delete button - inline on right side */}
+              {onDelete && (
+                <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+                  <AlertDialogTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className={cn(
+                        'size-7 text-muted-foreground hover:text-destructive transition-opacity',
+                        isHovering ? 'opacity-100' : 'opacity-0'
+                      )}
+                      aria-label={`Delete task "${task.title}"`}
+                    >
+                      <Trash2 className="size-3.5" />
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Delete Task</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Are you sure you want to delete &quot;{task.title}&quot;? This action cannot be undone.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogAction
+                        onClick={() => onDelete(task.id)}
+                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                      >
+                        Delete
+                      </AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              )}
+            </div>
           </div>
 
           {/* Add details link - shows on hover when no description */}
@@ -281,43 +318,6 @@ export function WorkingTaskItem({
           )}
         </div>
       </div>
-
-      {/* Delete button - shows on hover */}
-      {onDelete && (
-        <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
-          <AlertDialogTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                'absolute top-3 right-2 size-8 text-muted-foreground hover:text-destructive',
-                'transition-opacity',
-                isHovering ? 'opacity-100' : 'opacity-0'
-              )}
-              aria-label={`Delete task "${task.title}"`}
-            >
-              <Trash2 className="size-4" />
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Delete Task</AlertDialogTitle>
-              <AlertDialogDescription>
-                Are you sure you want to delete &quot;{task.title}&quot;? This action cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => onDelete(task.id)}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Delete
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      )}
 
       {/* Screen reader announcement for task status changes */}
       <div
