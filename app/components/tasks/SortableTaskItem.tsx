@@ -20,7 +20,6 @@ export function SortableTaskItem({ task, ...props }: SortableTaskItemProps) {
     isDragging,
   } = useSortable({
     id: task.id,
-    disabled: task.completed,
   });
 
   const style = {
@@ -38,7 +37,7 @@ export function SortableTaskItem({ task, ...props }: SortableTaskItemProps) {
     >
       <TaskListItem
         task={task}
-        dragHandleProps={!task.completed ? { ...attributes, ...listeners } : undefined}
+        dragHandleProps={{ ...attributes, ...listeners }}
         {...props}
       />
     </div>

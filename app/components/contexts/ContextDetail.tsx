@@ -204,10 +204,11 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
 
                   {showCompleted && (
                     <div id="completed-tasks" className="mt-3">
-                      <TaskList
+                      <SortableTaskList
                         tasks={completedTasks}
                         onEditTask={isDefinitionMode ? setEditingTask : undefined}
                         onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
+                        onReorder={reorderTask}
                       />
                     </div>
                   )}
