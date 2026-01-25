@@ -29,6 +29,7 @@ import {
 import { loadState, saveState, generateId, now } from './storage';
 import { getDemoData } from './demoData';
 import { generateEndPosition } from './position';
+import { getDescendants, getChildren, isDescendantOf } from './taskHierarchy';
 
 // Action types
 type Action =
@@ -52,7 +53,7 @@ type Action =
   | { type: 'SYNC_UPDATE_SESSION'; payload: Session }
   | { type: 'SYNC_UPDATE_PREFERENCES'; payload: Partial<AppState> }
   // Task actions
-  | { type: 'ADD_TASK'; payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position'> }
+  | { type: 'ADD_TASK'; payload: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position' | 'parentId'> & { parentId?: string | null } }
   | { type: 'UPDATE_TASK'; payload: { id: string; updates: Partial<Task> } }
   | { type: 'DELETE_TASK'; payload: string }
   | { type: 'TOGGLE_TASK_COMPLETED'; payload: string }
@@ -89,7 +90,12 @@ type Action =
   | { type: 'UPDATE_SIDEBAR_PREFERENCES'; payload: Partial<SidebarPreferences> }
   // Important date actions
   | { type: 'ADD_IMPORTANT_DATE'; payload: { contextId: string; date: Omit<ImportantDate, 'id'> } }
-  | { type: 'DELETE_IMPORTANT_DATE'; payload: { contextId: string; dateId: string } };
+  | { type: 'DELETE_IMPORTANT_DATE'; payload: { contextId: string; dateId: string } }
+  // Task hierarchy actions
+  | { type: 'TOGGLE_TASK_EXPANDED'; payload: string }
+  | { type: 'SET_TASKS_EXPANDED'; payload: { taskIds: string[]; expanded: boolean } }
+  | { type: 'ADD_SUBTASK'; payload: { parentId: string; title: string; description?: string; deadline?: string } }
+  | { type: 'MOVE_TASK_TO_PARENT'; payload: { taskId: string; newParentId: string | null } };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
@@ -128,14 +134,28 @@ function reducer(state: AppState, action: Action): AppState {
 
     // Task actions
     case 'ADD_TASK': {
-      // Find tasks in the same context to calculate position at end
-      const contextTasks = state.tasks.filter(
-        (t) => t.contextId === action.payload.contextId && !t.completed
+      const parentId = action.payload.parentId ?? null;
+
+      // If task has a parent, inherit contextId from parent
+      let contextId = action.payload.contextId;
+      if (parentId) {
+        const parentTask = state.tasks.find((t) => t.id === parentId);
+        if (parentTask) {
+          contextId = parentTask.contextId;
+        }
+      }
+
+      // Find sibling tasks (same parent) to calculate position at end
+      const siblingTasks = state.tasks.filter(
+        (t) => t.parentId === parentId && t.contextId === contextId && !t.completed
       );
-      const position = generateEndPosition(contextTasks);
+      const position = generateEndPosition(siblingTasks);
+
       const newTask: Task = {
         ...action.payload,
         id: generateId(),
+        contextId,
+        parentId,
         completed: false,
         position,
         createdAt: now(),
@@ -154,9 +174,19 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'DELETE_TASK': {
+      // Get all descendant tasks to cascade delete
+      const descendants = getDescendants(state.tasks, action.payload);
+      const idsToDelete = new Set([action.payload, ...descendants.map((d) => d.id)]);
+
+      // Remove deleted task IDs from expandedTaskIds
+      const newExpandedTaskIds = (state.expandedTaskIds || []).filter(
+        (id) => !idsToDelete.has(id)
+      );
+
       return {
         ...state,
-        tasks: state.tasks.filter((task) => task.id !== action.payload),
+        tasks: state.tasks.filter((task) => !idsToDelete.has(task.id)),
+        expandedTaskIds: newExpandedTaskIds,
       };
     }
     case 'TOGGLE_TASK_COMPLETED': {
@@ -182,22 +212,36 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
     case 'MOVE_TASK_TO_CONTEXT': {
-      // Find tasks in the target context to calculate position at end
+      // Find the target task
       const targetTask = state.tasks.find((t) => t.id === action.payload.taskId);
       if (!targetTask) return state;
 
+      // Get all descendants to cascade the context change
+      const descendants = getDescendants(state.tasks, action.payload.taskId);
+      const idsToUpdate = new Set([action.payload.taskId, ...descendants.map((d) => d.id)]);
+
+      // Find tasks in the target context (at root level for this parent) to calculate position at end
       const targetContextTasks = state.tasks.filter(
-        (t) => t.contextId === action.payload.contextId && !t.completed && t.id !== action.payload.taskId
+        (t) =>
+          t.contextId === action.payload.contextId &&
+          t.parentId === targetTask.parentId &&
+          !t.completed &&
+          t.id !== action.payload.taskId
       );
       const newPosition = generateEndPosition(targetContextTasks);
 
       return {
         ...state,
-        tasks: state.tasks.map((task) =>
-          task.id === action.payload.taskId
-            ? { ...task, contextId: action.payload.contextId, position: newPosition, updatedAt: now() }
-            : task
-        ),
+        tasks: state.tasks.map((task) => {
+          if (task.id === action.payload.taskId) {
+            // Main task: update context and position
+            return { ...task, contextId: action.payload.contextId, position: newPosition, updatedAt: now() };
+          } else if (idsToUpdate.has(task.id)) {
+            // Descendant: only update context
+            return { ...task, contextId: action.payload.contextId, updatedAt: now() };
+          }
+          return task;
+        }),
       };
     }
     case 'REORDER_TASK': {
@@ -469,6 +513,128 @@ function reducer(state: AppState, action: Action): AppState {
       };
     }
 
+    // Task hierarchy actions
+    case 'TOGGLE_TASK_EXPANDED': {
+      const currentExpanded = state.expandedTaskIds || [];
+      const taskId = action.payload;
+      const isExpanded = currentExpanded.includes(taskId);
+
+      return {
+        ...state,
+        expandedTaskIds: isExpanded
+          ? currentExpanded.filter((id) => id !== taskId)
+          : [...currentExpanded, taskId],
+      };
+    }
+
+    case 'SET_TASKS_EXPANDED': {
+      const currentExpanded = new Set(state.expandedTaskIds || []);
+      const { taskIds, expanded } = action.payload;
+
+      if (expanded) {
+        taskIds.forEach((id) => currentExpanded.add(id));
+      } else {
+        taskIds.forEach((id) => currentExpanded.delete(id));
+      }
+
+      return {
+        ...state,
+        expandedTaskIds: Array.from(currentExpanded),
+      };
+    }
+
+    case 'ADD_SUBTASK': {
+      const { parentId, title, description, deadline } = action.payload;
+      const parentTask = state.tasks.find((t) => t.id === parentId);
+
+      if (!parentTask) return state;
+
+      // Inherit contextId from parent
+      const contextId = parentTask.contextId;
+
+      // Find sibling tasks to calculate position at end
+      const siblingTasks = getChildren(state.tasks, parentId).filter((t) => !t.completed);
+      const position = generateEndPosition(siblingTasks);
+
+      const newTask: Task = {
+        id: generateId(),
+        title,
+        description,
+        contextId,
+        deadline,
+        parentId,
+        completed: false,
+        position,
+        createdAt: now(),
+        updatedAt: now(),
+      };
+
+      return { ...state, tasks: [...state.tasks, newTask] };
+    }
+
+    case 'MOVE_TASK_TO_PARENT': {
+      const { taskId, newParentId } = action.payload;
+      const taskToMove = state.tasks.find((t) => t.id === taskId);
+
+      if (!taskToMove) return state;
+
+      // Prevent circular reference: can't move a task to its own descendant
+      if (newParentId !== null && isDescendantOf(state.tasks, newParentId, taskId)) {
+        return state;
+      }
+
+      // Can't move task to itself
+      if (newParentId === taskId) {
+        return state;
+      }
+
+      // No change if already has this parent
+      if (taskToMove.parentId === newParentId) {
+        return state;
+      }
+
+      // Determine the new contextId
+      let newContextId = taskToMove.contextId;
+      if (newParentId !== null) {
+        // Moving to a parent - inherit parent's context
+        const newParent = state.tasks.find((t) => t.id === newParentId);
+        if (newParent) {
+          newContextId = newParent.contextId;
+        }
+      }
+      // If moving to root (newParentId === null), keep current context
+
+      // Get descendants to cascade context change if needed
+      const descendants = getDescendants(state.tasks, taskId);
+      const idsToUpdateContext = new Set(descendants.map((d) => d.id));
+
+      // Calculate position among new siblings
+      const newSiblings = state.tasks.filter(
+        (t) => t.parentId === newParentId && t.contextId === newContextId && !t.completed && t.id !== taskId
+      );
+      const newPosition = generateEndPosition(newSiblings);
+
+      return {
+        ...state,
+        tasks: state.tasks.map((task) => {
+          if (task.id === taskId) {
+            // Main task: update parentId, contextId (if changed), and position
+            return {
+              ...task,
+              parentId: newParentId,
+              contextId: newContextId,
+              position: newPosition,
+              updatedAt: now(),
+            };
+          } else if (idsToUpdateContext.has(task.id) && newContextId !== taskToMove.contextId) {
+            // Descendant: only update contextId if it changed
+            return { ...task, contextId: newContextId, updatedAt: now() };
+          }
+          return task;
+        }),
+      };
+    }
+
     // Sync actions (for realtime updates from other devices)
     case 'SYNC_INSERT_CONTEXT': {
       // Don't insert if already exists
@@ -583,7 +749,7 @@ interface StoreContextType {
   updateContext: (id: string, updates: Partial<Context>) => void;
   deleteContext: (id: string) => void;
   // Task actions
-  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position'>) => void;
+  addTask: (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position' | 'parentId'> & { parentId?: string | null }) => void;
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   toggleTaskCompleted: (id: string) => void;
@@ -634,6 +800,11 @@ interface StoreContextType {
   // Important date actions
   addImportantDate: (contextId: string, date: Omit<ImportantDate, 'id'>) => void;
   deleteImportantDate: (contextId: string, dateId: string) => void;
+  // Task hierarchy actions
+  toggleTaskExpanded: (taskId: string) => void;
+  setTasksExpanded: (taskIds: string[], expanded: boolean) => void;
+  addSubtask: (parentId: string, title: string, description?: string, deadline?: string) => void;
+  moveTaskToParent: (taskId: string, newParentId: string | null) => void;
 }
 
 const StoreContext = createContext<StoreContextType | null>(null);
@@ -691,7 +862,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
 
   // Task actions
   const addTask = useCallback(
-    (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position'>) => {
+    (task: Omit<Task, 'id' | 'createdAt' | 'updatedAt' | 'completed' | 'position' | 'parentId'> & { parentId?: string | null }) => {
       dispatch({ type: 'ADD_TASK', payload: task });
     },
     []
@@ -980,6 +1151,29 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  // Task hierarchy actions
+  const toggleTaskExpanded = useCallback((taskId: string) => {
+    dispatch({ type: 'TOGGLE_TASK_EXPANDED', payload: taskId });
+  }, []);
+
+  const setTasksExpanded = useCallback((taskIds: string[], expanded: boolean) => {
+    dispatch({ type: 'SET_TASKS_EXPANDED', payload: { taskIds, expanded } });
+  }, []);
+
+  const addSubtask = useCallback(
+    (parentId: string, title: string, description?: string, deadline?: string) => {
+      dispatch({ type: 'ADD_SUBTASK', payload: { parentId, title, description, deadline } });
+    },
+    []
+  );
+
+  const moveTaskToParent = useCallback(
+    (taskId: string, newParentId: string | null) => {
+      dispatch({ type: 'MOVE_TASK_TO_PARENT', payload: { taskId, newParentId } });
+    },
+    []
+  );
+
   const value: StoreContextType = {
     state,
     isHydrated,
@@ -1032,6 +1226,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     // Important date actions
     addImportantDate,
     deleteImportantDate,
+    // Task hierarchy actions
+    toggleTaskExpanded,
+    setTasksExpanded,
+    addSubtask,
+    moveTaskToParent,
   };
 
   return <StoreContext.Provider value={value}>{children}</StoreContext.Provider>;

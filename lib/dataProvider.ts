@@ -288,6 +288,7 @@ function buildStateFromPackage(pkg: ExportPackage, currentState: AppState): AppS
     sidebarPreferences: pkg.data.preferences?.sidebarPreferences ?? currentState.sidebarPreferences,
     userLocation: pkg.data.preferences?.userLocation ?? currentState.userLocation,
     notificationPermission: pkg.data.preferences?.notificationPermission ?? currentState.notificationPermission,
+    expandedTaskIds: currentState.expandedTaskIds ?? [], // Preserve or initialize expansion state
   };
 }
 
@@ -390,7 +391,7 @@ function mergeContexts(
 }
 
 /**
- * Merge tasks: skip ID duplicates, move orphans to inbox
+ * Merge tasks: skip ID duplicates, move orphans to inbox, handle missing parents
  */
 function mergeTasks(
   existing: Task[],
@@ -399,6 +400,14 @@ function mergeTasks(
 ): { merged: Task[]; warnings: ImportWarning[] } {
   const warnings: ImportWarning[] = [];
   const existingIds = new Set(existing.map((t) => t.id));
+
+  // Build set of all valid task IDs (existing + imported that won't be skipped)
+  const allTaskIds = new Set(existingIds);
+  imported.forEach((t) => {
+    if (!existingIds.has(t.id)) {
+      allTaskIds.add(t.id);
+    }
+  });
 
   const newTasks = imported
     .filter((t) => {
@@ -413,6 +422,8 @@ function mergeTasks(
       return true;
     })
     .map((t) => {
+      let modified = { ...t };
+
       // Check if task's context exists
       if (t.contextId !== null && !validContextIds.has(t.contextId)) {
         warnings.push({
@@ -420,9 +431,20 @@ function mergeTasks(
           message: `Task "${t.title}" moved to inbox (context not found)`,
           details: { entityType: 'tasks', entityId: t.id },
         });
-        return { ...t, contextId: null };
+        modified = { ...modified, contextId: null };
       }
-      return t;
+
+      // Check if task's parent exists (handle orphaned subtasks)
+      if (t.parentId !== null && !allTaskIds.has(t.parentId)) {
+        warnings.push({
+          code: 'ORPHANED_TASK',
+          message: `Task "${t.title}" moved to root level (parent task not found)`,
+          details: { entityType: 'tasks', entityId: t.id },
+        });
+        modified = { ...modified, parentId: null };
+      }
+
+      return modified;
     });
 
   return { merged: [...existing, ...newTasks], warnings };

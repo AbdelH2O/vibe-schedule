@@ -14,12 +14,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { GripVertical, Trash2 } from 'lucide-react';
+import { GripVertical, Plus, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { Task } from '@/lib/types';
 import type { ContextColorName } from '@/lib/colors';
 import { CountdownBadge } from '@/app/components/shared/CountdownBadge';
 import { getDeadlineUrgency } from '@/lib/dates';
+import { ExpandCollapseButton } from '@/app/components/tasks/ExpandCollapseButton';
+import { TaskProgressBadge } from '@/app/components/tasks/TaskProgressBadge';
 
 interface WorkingTaskItemProps {
   task: Task;
@@ -27,7 +29,15 @@ interface WorkingTaskItemProps {
   onToggleCompleted: (taskId: string) => void;
   onUpdateDescription?: (description: string) => void;
   onDelete?: (taskId: string) => void;
+  onAddSubtask?: (parentId: string) => void;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  // Hierarchy props
+  depth?: number;
+  isExpanded?: boolean;
+  hasChildren?: boolean;
+  childStats?: { completed: number; total: number };
+  onToggleExpand?: () => void;
+  onFocus?: (taskId: string) => void;
 }
 
 // Rotating placeholder prompts for micro-delight
@@ -71,7 +81,14 @@ export function WorkingTaskItem({
   onToggleCompleted,
   onUpdateDescription,
   onDelete,
+  onAddSubtask,
   dragHandleProps,
+  depth = 0,
+  isExpanded = false,
+  hasChildren = false,
+  childStats,
+  onToggleExpand,
+  onFocus,
 }: WorkingTaskItemProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const announcement = useSyncExternalStore(
@@ -151,12 +168,16 @@ export function WorkingTaskItem({
     setIsEditing(true);
   }, []);
 
+  // Indentation based on depth (16px per level)
+  const indentStyle = depth > 0 ? { paddingLeft: `${depth * 16}px` } : undefined;
+
   return (
     <div
       className={cn(
         'group relative transition-all duration-200 rounded-md border',
         'bg-white'
       )}
+      style={indentStyle}
       data-completed={task.completed ? 'true' : undefined}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
@@ -170,6 +191,18 @@ export function WorkingTaskItem({
 
       {/* Main task row */}
       <div className="flex items-start gap-2 p-3">
+        {/* Expand/collapse button - show only when task has children */}
+        {hasChildren && onToggleExpand ? (
+          <ExpandCollapseButton
+            isExpanded={isExpanded}
+            onToggle={onToggleExpand}
+            className="mt-0.5"
+            aria-label={isExpanded ? `Collapse "${task.title}"` : `Expand "${task.title}"`}
+          />
+        ) : (
+          // Spacer to align tasks without children
+          <div className="w-5 shrink-0" />
+        )}
         {/* Drag handle */}
         {dragHandleProps && !task.completed && (
           <button
@@ -195,15 +228,41 @@ export function WorkingTaskItem({
         <div className="flex-1 min-w-0">
           {/* Title row */}
           <div className="flex items-start justify-between gap-2">
-            <label
-              htmlFor={`task-${task.id}`}
-              className={cn(
-                'text-sm font-medium cursor-pointer select-none leading-tight text-foreground',
-                task.completed && 'line-through text-muted-foreground'
+            <div className="flex-1 min-w-0">
+              {onFocus ? (
+                <button
+                  type="button"
+                  onClick={() => onFocus(task.id)}
+                  className={cn(
+                    'text-sm font-medium text-left hover:underline focus:underline focus:outline-none leading-tight text-foreground',
+                    task.completed && 'line-through text-muted-foreground'
+                  )}
+                  title={`Focus on "${task.title}"`}
+                >
+                  {task.title}
+                </button>
+              ) : (
+                <label
+                  htmlFor={`task-${task.id}`}
+                  className={cn(
+                    'text-sm font-medium cursor-pointer select-none leading-tight text-foreground',
+                    task.completed && 'line-through text-muted-foreground'
+                  )}
+                >
+                  {task.title}
+                </label>
               )}
-            >
-              {task.title}
-            </label>
+              {/* Progress and deadline badges */}
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                {/* Child progress badge */}
+                {hasChildren && childStats && (
+                  <TaskProgressBadge
+                    completed={childStats.completed}
+                    total={childStats.total}
+                  />
+                )}
+              </div>
+            </div>
             <div className="flex items-center gap-1 shrink-0">
               {/* Deadline badge - always visible for urgent/warning/overdue, hover for neutral */}
               {task.deadline && !task.completed && (() => {
@@ -220,6 +279,22 @@ export function WorkingTaskItem({
                   />
                 ) : null;
               })()}
+              {/* Add subtask button */}
+              {onAddSubtask && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    'size-7 text-muted-foreground hover:text-foreground transition-opacity',
+                    isHovering ? 'opacity-100' : 'opacity-0'
+                  )}
+                  onClick={() => onAddSubtask(task.id)}
+                  aria-label={`Add subtask to "${task.title}"`}
+                  title="Add subtask"
+                >
+                  <Plus className="size-3.5" aria-hidden="true" />
+                </Button>
+              )}
               {/* Delete button - inline on right side */}
               {onDelete && (
                 <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>

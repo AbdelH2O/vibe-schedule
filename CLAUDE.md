@@ -82,7 +82,28 @@ pnpm lint         # Run ESLint
 - `animate-fade-in` for mode transitions (0.3s)
 - CSS keyframes in app/globals.css
 
+## Patterns & Conventions (001-nested-task-hierarchy)
+
+### Task Hierarchy System
+- Tasks support unlimited nesting via `parentId: string | null` field
+- `parentId: null` = root-level task; non-null = child of that task
+- Helper functions in `lib/taskHierarchy.ts`: getChildren, getDescendants, getAncestors, isDescendantOf
+- Children inherit context from parent (cascade on context change)
+- Cascade delete: deleting parent removes all descendants
+
+### Hierarchy UI Patterns
+- Expand/collapse: ChevronRight/ChevronDown icons, state persisted in `expandedTaskIds`
+- Focus mode: Click task title to drill in; breadcrumb for navigation back
+- Progress badge: "X/Y" showing direct children completion (not recursive)
+- Indentation: depth prop controls visual nesting level
+
+### Hierarchy State Management
+- `expandedTaskIds: string[]` in AppState - persisted to localStorage
+- Focus state: React component state (resets on context/mode change)
+- Tree built on-demand from flat task array using selectors
+
 ## Recent Changes
+- 001-nested-task-hierarchy: Task nesting with parentId, expand/collapse, focus mode, breadcrumb navigation
 - 010-cross-device-sync: Added TypeScript 5 (strict mode) + Next.js 16.1.3, React 19.2.3, shadcn/ui, Radix UI primitives, Supabase JS client
 - 009-data-export-import: Added TypeScript 5 (strict mode) + Next.js 16, React 19, shadcn/ui, Radix UI, Lucide React, Sonner (toasts)
 - 008-workmode-sidebar: Added TypeScript 5 (strict mode) + shadcn/ui, Radix UI primitives, Lucide React, Tailwind CSS 4

@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { TaskList } from '../tasks/TaskList';
 import { SortableTaskList } from '../tasks/SortableTaskList';
+import { TaskBreadcrumb } from '../tasks/TaskBreadcrumb';
 import { EditTaskDialog } from '../tasks/EditTaskDialog';
 import { EmptyState } from '../shared/EmptyState';
 import { ContextDetailHeader } from './ContextDetailHeader';
@@ -17,6 +18,7 @@ import { useStore } from '@/lib/store';
 import { generateId } from '@/lib/storage';
 import { ChevronDown, ChevronRight, CheckSquare, Plus, Flag } from 'lucide-react';
 import type { Context, Task, ImportantDate } from '@/lib/types';
+import { getChildren, getDescendants } from '@/lib/taskHierarchy';
 
 interface ContextDetailProps {
   context: Context;
@@ -24,20 +26,35 @@ interface ContextDetailProps {
 }
 
 export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
-  const { deleteContext, getTasksByContextId, updateContext, updateTask, reorderTask, state } = useStore();
+  const { deleteContext, getTasksByContextId, updateContext, updateTask, reorderTask, state, toggleTaskExpanded, addSubtask, moveTaskToParent } = useStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [showMilestones, setShowMilestones] = useState(true);
   const [showAddMilestone, setShowAddMilestone] = useState(false);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
 
   const contextTasks = getTasksByContextId(context.id);
   const isDefinitionMode = state.mode === 'definition';
+  const { expandedTaskIds } = state;
+
+  // Reset focusedTaskId when context changes
+  useEffect(() => {
+    setFocusedTaskId(null);
+  }, [context.id]);
+
+  // Filter tasks based on focus - when focused, show only the focused task and its descendants
+  const visibleTasks = focusedTaskId
+    ? [
+        ...contextTasks.filter((t) => t.id === focusedTaskId),
+        ...getDescendants(contextTasks, focusedTaskId),
+      ]
+    : contextTasks;
 
   // Separate active and completed tasks
-  const activeTasks = contextTasks.filter((t) => !t.completed);
-  const completedTasks = contextTasks.filter((t) => t.completed);
+  const activeTasks = visibleTasks.filter((t) => !t.completed);
+  const completedTasks = visibleTasks.filter((t) => t.completed);
 
   const handleDelete = () => {
     deleteContext(context.id);
@@ -61,6 +78,12 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
 
   const handleUpdateDescription = (taskId: string, description: string) => {
     updateTask(taskId, { description: description || undefined });
+  };
+
+  const handleAddSubtask = (parentId: string) => {
+    // For now, create a default subtask - CreateTaskDialog will handle actual UI
+    // This callback is used by the quick "+" button
+    addSubtask(parentId, 'New subtask');
   };
 
   return (
@@ -136,6 +159,18 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
               )}
             </div>
           )}
+          {/* Breadcrumb navigation - show when focused on a task */}
+          {focusedTaskId && (
+            <div className="px-4 pt-3 pb-2 border-b border-border/50">
+              <TaskBreadcrumb
+                tasks={contextTasks}
+                focusedTaskId={focusedTaskId}
+                rootLabel={context.name}
+                onNavigate={setFocusedTaskId}
+              />
+            </div>
+          )}
+
           {contextTasks.length === 0 ? (
             <div className="p-4">
               <EmptyState
@@ -171,7 +206,12 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
                   tasks={activeTasks}
                   onEditTask={isDefinitionMode ? setEditingTask : undefined}
                   onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
+                  onAddSubtask={isDefinitionMode ? handleAddSubtask : undefined}
                   onReorder={reorderTask}
+                  onMoveToParent={isDefinitionMode ? moveTaskToParent : undefined}
+                  expandedTaskIds={expandedTaskIds}
+                  onToggleExpand={toggleTaskExpanded}
+                  onFocus={setFocusedTaskId}
                 />
               )}
 
@@ -208,7 +248,12 @@ export function ContextDetail({ context, onDeleted }: ContextDetailProps) {
                         tasks={completedTasks}
                         onEditTask={isDefinitionMode ? setEditingTask : undefined}
                         onUpdateDescription={isDefinitionMode ? handleUpdateDescription : undefined}
+                        onAddSubtask={isDefinitionMode ? handleAddSubtask : undefined}
                         onReorder={reorderTask}
+                        onMoveToParent={isDefinitionMode ? moveTaskToParent : undefined}
+                        expandedTaskIds={expandedTaskIds}
+                        onToggleExpand={toggleTaskExpanded}
+                        onFocus={setFocusedTaskId}
                       />
                     </div>
                   )}

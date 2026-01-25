@@ -44,15 +44,25 @@ export function loadState(): AppState {
         })) as Context[]
       : [];
 
-    // Migrate tasks: add position to tasks without one
+    // Migrate tasks: add position and parentId to tasks without them
     const rawTasks: Task[] = Array.isArray(parsed.tasks) ? parsed.tasks : [];
     const tasksNeedingPosition = rawTasks.filter((t) => !t.position);
+    const tasksNeedingParentId = rawTasks.filter((t) => t.parentId === undefined);
 
     let tasks = rawTasks;
+
+    // Add parentId to tasks that don't have it (migration from pre-hierarchy version)
+    if (tasksNeedingParentId.length > 0) {
+      tasks = tasks.map((task) => ({
+        ...task,
+        parentId: task.parentId ?? null,
+      }));
+    }
+
     if (tasksNeedingPosition.length > 0) {
       // Group tasks by contextId, sorted by createdAt
       const tasksByContext = new Map<string | null, Task[]>();
-      for (const task of rawTasks) {
+      for (const task of tasks) {
         const contextId = task.contextId;
         if (!tasksByContext.has(contextId)) {
           tasksByContext.set(contextId, []);
@@ -87,6 +97,8 @@ export function loadState(): AppState {
       notificationPermission: parsed.notificationPermission ?? 'default',
       // Sidebar preferences (migration safety)
       sidebarPreferences: parsed.sidebarPreferences ?? { deadlineScopeFilter: 'all' },
+      // Task hierarchy expansion state (migration safety)
+      expandedTaskIds: Array.isArray(parsed.expandedTaskIds) ? parsed.expandedTaskIds : [],
     };
   } catch (error) {
     console.error('Failed to load state from localStorage:', error);

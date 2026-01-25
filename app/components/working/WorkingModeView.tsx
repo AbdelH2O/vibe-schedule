@@ -12,17 +12,20 @@ import { SessionTimer } from './SessionTimer';
 import { ContextDropdown, type ContextDropdownRef } from './ContextDropdown';
 import { WorkingTaskList } from './WorkingTaskList';
 import type { WorkingQuickAddRef } from './WorkingQuickAdd';
+import { TaskBreadcrumb } from '../tasks/TaskBreadcrumb';
+import { getDescendants } from '@/lib/taskHierarchy';
 import { SessionControls } from './SessionControls';
 import { SessionSummary, calculateSessionSummary, type SessionSummaryData } from './SessionSummary';
 import { WorkingSidebar } from './WorkingSidebar';
 
 export function WorkingModeView() {
-  const { state, getContextById, endSession, pauseSession, resumeSession, suspendSession, notificationState } = useStore();
+  const { state, getContextById, endSession, pauseSession, resumeSession, suspendSession, notificationState, toggleTaskExpanded, addSubtask, getTasksByContextId, moveTaskToParent } = useStore();
   const session = state.session;
   const [summaryData, setSummaryData] = useState<SessionSummaryData | null>(null);
   const [showSummary, setShowSummary] = useState(false);
   const [showEndDialog, setShowEndDialog] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [focusedTaskId, setFocusedTaskId] = useState<string | null>(null);
   const quickAddRef = useRef<WorkingQuickAddRef>(null);
   const contextDropdownRef = useRef<ContextDropdownRef>(null);
 
@@ -31,6 +34,11 @@ export function WorkingModeView() {
     if (!session?.activeContextId) return null;
     return getContextById(session.activeContextId);
   }, [session?.activeContextId, getContextById]);
+
+  // Reset focusedTaskId when active context changes or when switching modes
+  useEffect(() => {
+    setFocusedTaskId(null);
+  }, [session?.activeContextId]);
 
   // Get context color for CSS variables (subtle tint system)
   const contextColorStyle = useMemo(() => {
@@ -227,11 +235,29 @@ export function WorkingModeView() {
 
           {/* Tasks for active context - full width, prominent */}
           {session.activeContextId && (
-            <WorkingTaskList
-              ref={quickAddRef}
-              contextId={session.activeContextId}
-              contextColor={activeContext?.color}
-            />
+            <>
+              {/* Breadcrumb navigation - show when focused on a task */}
+              {focusedTaskId && activeContext && (
+                <div className="p-4 border rounded-lg bg-card">
+                  <TaskBreadcrumb
+                    tasks={getTasksByContextId(session.activeContextId)}
+                    focusedTaskId={focusedTaskId}
+                    rootLabel={activeContext.name}
+                    onNavigate={setFocusedTaskId}
+                  />
+                </div>
+              )}
+              <WorkingTaskList
+                ref={quickAddRef}
+                contextId={session.activeContextId}
+                contextColor={activeContext?.color}
+                expandedTaskIds={state.expandedTaskIds}
+                onToggleExpand={toggleTaskExpanded}
+                onFocus={setFocusedTaskId}
+                onAddSubtask={(parentId) => addSubtask(parentId, 'New subtask')}
+                onMoveToParent={moveTaskToParent}
+              />
+            </>
           )}
         </div>
       </div>

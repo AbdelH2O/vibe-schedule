@@ -13,21 +13,30 @@ export interface CreateTaskDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   contextId?: string | null;
+  parentId?: string | null;
 }
 
 export function CreateTaskDialog({
   open,
   onOpenChange,
   contextId = null,
+  parentId = null,
 }: CreateTaskDialogProps) {
-  const { addTask } = useStore();
+  const { addTask, addSubtask } = useStore();
+  const isSubtask = parentId !== null;
 
   const handleSubmit = (data: TaskFormData) => {
-    addTask({
-      title: data.title,
-      contextId: data.contextId,
-      deadline: data.deadline || undefined,
-    });
+    if (isSubtask && parentId) {
+      // Create as subtask - contextId is inherited from parent
+      addSubtask(parentId, data.title, undefined, data.deadline || undefined);
+    } else {
+      // Create as root-level task
+      addTask({
+        title: data.title,
+        contextId: data.contextId,
+        deadline: data.deadline || undefined,
+      });
+    }
     onOpenChange(false);
   };
 
@@ -35,13 +44,14 @@ export function CreateTaskDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Task</DialogTitle>
+          <DialogTitle>{isSubtask ? 'Create Subtask' : 'Create Task'}</DialogTitle>
         </DialogHeader>
         <TaskForm
           contextId={contextId}
           onSubmit={handleSubmit}
           onCancel={() => onOpenChange(false)}
-          submitLabel="Create Task"
+          submitLabel={isSubtask ? 'Create Subtask' : 'Create Task'}
+          hideContextSelector={isSubtask}
         />
       </DialogContent>
     </Dialog>

@@ -399,6 +399,7 @@ export function getDemoData(): { contexts: Context[]; tasks: Task[] } {
       deadline,
       completed: false,
       position,
+      parentId: null, // Demo tasks are all root-level
       createdAt: timestamp,
       updatedAt: timestamp,
     };

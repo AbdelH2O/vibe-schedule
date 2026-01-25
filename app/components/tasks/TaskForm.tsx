@@ -27,6 +27,7 @@ export interface TaskFormProps {
   onSubmit: (data: TaskFormData) => void;
   onCancel?: () => void;
   submitLabel?: string;
+  hideContextSelector?: boolean;
 }
 
 export function TaskForm({
@@ -35,6 +36,7 @@ export function TaskForm({
   onSubmit,
   onCancel,
   submitLabel = 'Create Task',
+  hideContextSelector = false,
 }: TaskFormProps) {
   const { state } = useStore();
   const [title, setTitle] = useState(initialData?.title ?? '');
@@ -74,27 +76,29 @@ export function TaskForm({
         />
       </div>
 
-      <div className="space-y-2">
-        <Label htmlFor="task-context">Context</Label>
-        <Select
-          value={selectedContextId ?? 'inbox'}
-          onValueChange={(value) =>
-            setSelectedContextId(value === 'inbox' ? null : value)
-          }
-        >
-          <SelectTrigger id="task-context">
-            <SelectValue placeholder="Select a context" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="inbox">Inbox (no context)</SelectItem>
-            {contexts.map((ctx) => (
-              <SelectItem key={ctx.id} value={ctx.id}>
-                {ctx.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {!hideContextSelector && (
+        <div className="space-y-2">
+          <Label htmlFor="task-context">Context</Label>
+          <Select
+            value={selectedContextId ?? 'inbox'}
+            onValueChange={(value) =>
+              setSelectedContextId(value === 'inbox' ? null : value)
+            }
+          >
+            <SelectTrigger id="task-context">
+              <SelectValue placeholder="Select a context" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="inbox">Inbox (no context)</SelectItem>
+              {contexts.map((ctx) => (
+                <SelectItem key={ctx.id} value={ctx.id}>
+                  {ctx.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Label htmlFor="task-deadline">Deadline (optional)</Label>

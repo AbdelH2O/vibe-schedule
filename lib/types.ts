@@ -133,6 +133,7 @@ export interface Task {
   deadline?: string; // ISO date string, display only
   completed: boolean;
   position: string; // Fractional index for ordering (e.g., "a0", "a0V")
+  parentId: string | null; // null = root-level task, string = child of that task
   createdAt: string;
   updatedAt: string;
   // Sync metadata (optional for offline-first compatibility)
@@ -184,6 +185,8 @@ export interface AppState {
   notificationPermission: 'default' | 'granted' | 'denied';
   // Sidebar preferences
   sidebarPreferences: SidebarPreferences;
+  // Task hierarchy expansion state
+  expandedTaskIds: string[];
 }
 
 // Runtime state for notifications (not persisted to localStorage)
@@ -208,6 +211,8 @@ export const INITIAL_STATE: AppState = {
   sidebarPreferences: {
     deadlineScopeFilter: 'all',
   },
+  // Task hierarchy expansion state
+  expandedTaskIds: [],
 };
 
 // Inbox constant - tasks with contextId: null are in inbox

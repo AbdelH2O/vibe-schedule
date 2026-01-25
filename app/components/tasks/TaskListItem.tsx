@@ -8,7 +8,10 @@ import { Button } from '@/components/ui/button';
 import { ConfirmDialog } from '../shared/ConfirmDialog';
 import { CountdownBadge } from '../shared/CountdownBadge';
 import { cn } from '@/lib/utils';
-import { GripVertical, Pencil, Trash2 } from 'lucide-react';
+import { GripVertical, Pencil, Trash2, Plus } from 'lucide-react';
+import { getDescendants } from '@/lib/taskHierarchy';
+import { ExpandCollapseButton } from './ExpandCollapseButton';
+import { TaskProgressBadge } from './TaskProgressBadge';
 
 // Rotating placeholder prompts for micro-delight
 const PLACEHOLDER_PROMPTS = [
@@ -24,10 +27,31 @@ export interface TaskListItemProps {
   onEdit?: (task: Task) => void;
   onDelete?: (taskId: string) => void;
   onUpdateDescription?: (taskId: string, description: string) => void;
+  onAddSubtask?: (parentId: string) => void;
   dragHandleProps?: React.HTMLAttributes<HTMLButtonElement>;
+  // Hierarchy props
+  depth?: number;
+  isExpanded?: boolean;
+  hasChildren?: boolean;
+  childStats?: { completed: number; total: number };
+  onToggleExpand?: () => void;
+  onFocus?: (taskId: string) => void;
 }
 
-export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription, dragHandleProps }: TaskListItemProps) {
+export function TaskListItem({
+  task,
+  onEdit,
+  onDelete,
+  onUpdateDescription,
+  onAddSubtask,
+  dragHandleProps,
+  depth = 0,
+  isExpanded = false,
+  hasChildren = false,
+  childStats,
+  onToggleExpand,
+  onFocus,
+}: TaskListItemProps) {
   const { toggleTaskCompleted, deleteTask, state } = useStore();
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
@@ -36,6 +60,13 @@ export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription, drag
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const isDefinitionMode = state.mode === 'definition';
+
+  // Calculate descendant count for delete confirmation
+  const descendants = useMemo(
+    () => getDescendants(state.tasks, task.id),
+    [state.tasks, task.id]
+  );
+  const descendantCount = descendants.length;
 
   // Get a stable placeholder for this task (based on task id hash)
   const placeholder = useMemo(() => {
@@ -101,15 +132,31 @@ export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription, drag
     setIsEditing(true);
   }, []);
 
+  // Indentation based on depth (16px per level)
+  const indentStyle = depth > 0 ? { paddingLeft: `${depth * 16}px` } : undefined;
+
   return (
     <>
     <div
       className="py-2 px-3 rounded-md hover:bg-muted/50 group"
+      style={indentStyle}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
       {/* Main task row */}
       <div className="flex items-start gap-2">
+        {/* Expand/collapse button - show only when task has children */}
+        {hasChildren && onToggleExpand ? (
+          <ExpandCollapseButton
+            isExpanded={isExpanded}
+            onToggle={onToggleExpand}
+            className="mt-0.5 -ml-1"
+            aria-label={isExpanded ? `Collapse "${task.title}"` : `Expand "${task.title}"`}
+          />
+        ) : (
+          // Spacer to align tasks without children
+          <div className="w-5 shrink-0" />
+        )}
         {/* Drag handle */}
         {dragHandleProps && (
           <button
@@ -132,24 +179,58 @@ export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription, drag
           {/* Title and actions row */}
           <div className="flex items-start justify-between gap-2">
             <div className="flex-1 min-w-0">
-              <span
-                className={cn(
-                  'text-sm block',
-                  task.completed && 'line-through text-muted-foreground'
-                )}
-                title={task.title}
-              >
-                {task.title}
-              </span>
-              {task.deadline && !task.completed && (
-                <div className="mt-0.5">
-                  <CountdownBadge date={task.deadline} showIcon={true} />
-                </div>
+              {onFocus ? (
+                <button
+                  type="button"
+                  onClick={() => onFocus(task.id)}
+                  className={cn(
+                    'text-sm block text-left hover:underline focus:underline focus:outline-none',
+                    task.completed && 'line-through text-muted-foreground'
+                  )}
+                  title={`Focus on "${task.title}"`}
+                >
+                  {task.title}
+                </button>
+              ) : (
+                <span
+                  className={cn(
+                    'text-sm block',
+                    task.completed && 'line-through text-muted-foreground'
+                  )}
+                  title={task.title}
+                >
+                  {task.title}
+                </span>
               )}
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                {/* Child progress badge */}
+                {hasChildren && childStats && (
+                  <TaskProgressBadge
+                    completed={childStats.completed}
+                    total={childStats.total}
+                  />
+                )}
+                {/* Deadline badge */}
+                {task.deadline && !task.completed && (
+                  <CountdownBadge date={task.deadline} showIcon={true} />
+                )}
+              </div>
             </div>
 
             <div className="flex items-center gap-1 shrink-0">
               <div className="opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity flex gap-1">
+                {onAddSubtask && isDefinitionMode && (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="size-7"
+                    onClick={() => onAddSubtask(task.id)}
+                    aria-label={`Add subtask to "${task.title}"`}
+                    title="Add subtask"
+                  >
+                    <Plus className="size-3.5" aria-hidden="true" />
+                  </Button>
+                )}
                 {onEdit && isDefinitionMode && (
                   <Button
                     variant="ghost"
@@ -241,8 +322,12 @@ export function TaskListItem({ task, onEdit, onDelete, onUpdateDescription, drag
       <ConfirmDialog
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}
-        title={`Delete "${task.title}"?`}
-        description="This action cannot be undone. The task will be permanently deleted."
+        title={`Delete "${task.title}"${descendantCount > 0 ? ` and ${descendantCount} subtask${descendantCount === 1 ? '' : 's'}` : ''}?`}
+        description={
+          descendantCount > 0
+            ? `This action cannot be undone. The task and all ${descendantCount} subtask${descendantCount === 1 ? '' : 's'} will be permanently deleted.`
+            : "This action cannot be undone. The task will be permanently deleted."
+        }
         confirmLabel="Delete"
         onConfirm={handleDelete}
         variant="destructive"
