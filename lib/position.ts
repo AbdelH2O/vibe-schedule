@@ -48,11 +48,11 @@ export function calculateNewPosition(
     return sortedItems[oldIndex]?.position ?? generateKeyBetween(null, null);
   }
 
-  // Moving down in the list
+  // Moving down in the list - place BEFORE the target item
   if (newIndex > oldIndex) {
+    const before = sortedItems[newIndex - 1]?.position ?? null;
     const after = sortedItems[newIndex]?.position ?? null;
-    const afterNext = sortedItems[newIndex + 1]?.position ?? null;
-    return generateKeyBetween(after, afterNext);
+    return generateKeyBetween(before, after);
   }
 
   // Moving up in the list
